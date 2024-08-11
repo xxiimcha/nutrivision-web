@@ -29,9 +29,10 @@ function Admin() {
   });
   const [admins, setAdmins] = useState([]);
   const [open, setOpen] = useState(false);
+  const [editMode, setEditMode] = useState(false); // To track if we are in edit mode
+  const [selectedAdminId, setSelectedAdminId] = useState(null); // To track the selected admin's ID
   const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
   const [adminToDelete, setAdminToDelete] = useState(null);
-  const [password, setPassword] = useState('');
 
   useEffect(() => {
     const fetchAdmins = async () => {
@@ -62,36 +63,67 @@ function Admin() {
     e.preventDefault();
     const { firstName, lastName, email, role } = adminDetails;
 
-    try {
-      const response = await axios.post('http://localhost:5000/api/admins', {
-        firstName,
-        lastName,
-        email,
-        role,
-      });
+    if (editMode) {
+      // Update existing admin
+      try {
+        const response = await axios.put(`http://localhost:5000/api/admins/${selectedAdminId}`, {
+          firstName,
+          lastName,
+          email,
+          role,
+        });
 
-      setPassword(response.data.password); // Set the password state
+        setAdmins((prevAdmins) =>
+          prevAdmins.map((admin) =>
+            admin.id === selectedAdminId ? { ...response.data, id: selectedAdminId } : admin
+          )
+        );
 
-      setAdmins((prevAdmins) => [
-        ...prevAdmins,
-        { ...response.data, id: response.data._id },
-      ]);
+        setEditMode(false);
+        setSelectedAdminId(null);
+      } catch (error) {
+        console.error("Error updating admin:", error);
+      }
+    } else {
+      // Create new admin
+      try {
+        const response = await axios.post('http://localhost:5000/api/admins', {
+          firstName,
+          lastName,
+          email,
+          role,
+        });
 
-      setAdminDetails({
-        firstName: '',
-        lastName: '',
-        email: '',
-        role: ''
-      });
-
-      setOpen(false);
-    } catch (error) {
-      console.error("Error adding admin:", error);
+        setAdmins((prevAdmins) => [
+          ...prevAdmins,
+          { ...response.data, id: response.data._id, password: response.data.password },
+        ]);
+      } catch (error) {
+        console.error("Error adding admin:", error);
+      }
     }
+
+    setAdminDetails({
+      firstName: '',
+      lastName: '',
+      email: '',
+      role: ''
+    });
+
+    setOpen(false);
   };
 
   const handleEdit = (id) => {
-    console.log('Edit admin with id:', id);
+    const admin = admins.find((admin) => admin.id === id);
+    setAdminDetails({
+      firstName: admin.firstName,
+      lastName: admin.lastName,
+      email: admin.email,
+      role: admin.role,
+    });
+    setSelectedAdminId(id);
+    setEditMode(true);
+    setOpen(true);
   };
 
   const handleDelete = (id) => {
@@ -121,6 +153,7 @@ function Admin() {
     { field: 'lastName', headerName: 'Last Name', width: 150 },
     { field: 'email', headerName: 'Email', width: 200 },
     { field: 'role', headerName: 'Role', width: 150 },
+    { field: 'password', headerName: 'Password', width: 150 },
     {
       field: 'actions',
       headerName: 'Actions',
@@ -150,7 +183,7 @@ function Admin() {
       </Box>
       <Box display="flex" flexDirection="column">
         <Dialog open={open} onClose={() => setOpen(false)}>
-          <DialogTitle>Add New Admin</DialogTitle>
+          <DialogTitle>{editMode ? 'Edit Admin' : 'Add New Admin'}</DialogTitle>
           <DialogContent>
             <form onSubmit={handleSubmit}>
               <Box display="flex" flexDirection="column" mt={2}>
@@ -190,8 +223,9 @@ function Admin() {
                     name="role"
                     required
                   >
+                    <MenuItem value="Admin">Admin</MenuItem>
+                    <MenuItem value="Nutritionist">Nutritionist</MenuItem>
                     <MenuItem value="Health Worker">Health Worker</MenuItem>
-                    <MenuItem value="Nutritional Scholar">Nutritional Scholar</MenuItem>
                   </Select>
                 </FormControl>
               </Box>
@@ -202,17 +236,10 @@ function Admin() {
               Cancel
             </Button>
             <Button onClick={handleSubmit} variant="contained" color="primary">
-              Add Admin
+              {editMode ? 'Update Admin' : 'Add Admin'}
             </Button>
           </DialogActions>
         </Dialog>
-        {password && (
-          <Box mt={2}>
-            <Typography variant="body1" component="p">
-              Generated Password: {password}
-            </Typography>
-          </Box>
-        )}
         <Dialog
           open={deleteConfirmationOpen}
           onClose={handleCancelDelete}

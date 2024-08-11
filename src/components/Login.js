@@ -9,12 +9,16 @@ import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
 import Typography from '@mui/material/Typography';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
+import { useContext } from 'react';
+import { UserContext } from '../context/UserContext';
 
 import logo from '../images/logo.png'; // Import your logo image
 
 const defaultTheme = createTheme();
 
 export default function SignInSide() {
+  const { setRole } = useContext(UserContext); // Use UserContext to set the role
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
@@ -24,8 +28,23 @@ export default function SignInSide() {
     try {
       const response = await axios.post('http://localhost:5000/api/login', { email, password });
       if (response.status === 200) {
-        console.log('Logged in successfully');
-        window.location.href = '/dashboard'; // Redirect to dashboard
+        const { role } = response.data;
+
+        // Store the role in UserContext and localStorage for persistence
+        setRole(role);
+        localStorage.setItem('userRole', role);
+
+        // Redirect based on user role
+        if (role === 'Admin' || role === 'Super Admin') {
+          window.location.href = '/dashboard/admin';
+        } else if (role === 'Health Worker') {
+          window.location.href = '/dashboard/healthworker';
+        } else if (role === 'Nutritionist') {
+          window.location.href = '/dashboard/nutritionist';
+        } else {
+          // Handle unknown roles or errors
+          alert('Unknown role. Please contact support.');
+        }
       }
     } catch (error) {
       console.log('Invalid credentials');

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { Outlet, Link } from 'react-router-dom';
 import AppBar from '@mui/material/AppBar';
 import Box from '@mui/material/Box';
@@ -10,8 +10,6 @@ import List from '@mui/material/List';
 import ListItem from '@mui/material/ListItem';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
-import Collapse from '@mui/material/Collapse';
-import MenuIcon from '@mui/icons-material/Menu';
 import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
 import DashboardIcon from '@mui/icons-material/Dashboard';
@@ -20,14 +18,14 @@ import PeopleIcon from '@mui/icons-material/People';
 import PlansIcon from '@mui/icons-material/ListAlt';
 import HomeIcon from '@mui/icons-material/Home';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
-import ExpandLess from '@mui/icons-material/ExpandLess';
-import ExpandMore from '@mui/icons-material/ExpandMore';
 import Button from '@mui/material/Button';
 import Badge from '@mui/material/Badge';
 import MailIcon from '@mui/icons-material/Mail';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import SettingsIcon from '@mui/icons-material/Settings';
+import MenuIcon from '@mui/icons-material/Menu';
 import { styled } from '@mui/material/styles';
+import { UserContext } from './context/UserContext';
 
 // Import the logo image
 import logo from './images/logo.png';
@@ -47,28 +45,20 @@ const CustomListItem = styled(ListItem)(({ theme }) => ({
     color: theme.palette.primary.main,
   },
 }));
-
 function DashboardLayout(props) {
   const { window } = props;
+  const { role } = useContext(UserContext); // Use the UserContext to get the role
+
   const [mobileOpen, setMobileOpen] = React.useState(false);
-  const [openUsers, setOpenUsers] = React.useState(false);
-  const [openStatus, setOpenStatus] = React.useState(false); // New state for the "Status" collapsible item
+
+  console.log("Current role:", role); // Debugging to see the current role
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
   };
 
-  const handleUsersClick = () => {
-    setOpenUsers(!openUsers);
-  };
-
-  const handleStatusClick = () => {
-    setOpenStatus(!openStatus); // Toggle the state for the "Status" collapsible item
-  };
-
   const handleLogout = () => {
-    // Handle logout logic here
-    // For navigation, you can use Link to the landing page
+    console.log('Logout clicked');
   };
 
   const drawer = (
@@ -86,48 +76,46 @@ function DashboardLayout(props) {
           <ListItemIcon><DashboardIcon /></ListItemIcon>
           <ListItemText primary="Dashboard" />
         </CustomListItem>
-        <CustomListItem button onClick={handleUsersClick}>
-          <ListItemIcon><PeopleIcon /></ListItemIcon>
-          <ListItemText primary="Accounts" />
-          {openUsers ? <ExpandLess /> : <ExpandMore />}
-        </CustomListItem>
-        <Collapse in={openUsers} timeout="auto" unmountOnExit>
-          <List component="div" disablePadding>
-            <CustomListItem button component={Link} to="residence" sx={{ pl: 4 }}>
-              <ListItemIcon><HomeIcon /></ListItemIcon>
-              <ListItemText primary="Residences" />
-            </CustomListItem>
-            <CustomListItem button component={Link} to="admin" sx={{ pl: 4 }}>
+
+        {/* Conditionally render sidebar items based on the user's role */}
+        {role === 'Admin' || role === 'Super Admin' && (
+          <>
+            <CustomListItem button component={Link} to="admin">
               <ListItemIcon><AdminPanelSettingsIcon /></ListItemIcon>
-              <ListItemText primary="Admin" />
+              <ListItemText primary="User Management" />
             </CustomListItem>
-          </List>
-        </Collapse>
-        <CustomListItem button onClick={handleStatusClick}>
-          <ListItemIcon><PeopleIcon /></ListItemIcon>
-          <ListItemText primary="Status" />
-          {openStatus ? <ExpandLess /> : <ExpandMore />}
-        </CustomListItem>
-        <Collapse in={openStatus} timeout="auto" unmountOnExit>
-          <List component="div" disablePadding>
-            <CustomListItem button component={Link} to="records" sx={{ pl: 4 }}>
+          </>
+        )}
+
+        {(role === 'Nutritionist' || role === 'Health Worker') && (
+          <>
+            <CustomListItem button component={Link} to="nutritional-status">
+              <ListItemIcon><PeopleIcon /></ListItemIcon>
+              <ListItemText primary="Nutritional Status" />
+            </CustomListItem>
+            <CustomListItem button component={Link} to="food-management">
+              <ListItemIcon><PlansIcon /></ListItemIcon>
+              <ListItemText primary="Food Management" />
+            </CustomListItem>
+            <CustomListItem button component={Link} to="records-management">
               <ListItemIcon><HomeIcon /></ListItemIcon>
-              <ListItemText primary="Records" />
+              <ListItemText primary="Records Management" />
             </CustomListItem>
-            <CustomListItem button component={Link} to="monitoring" sx={{ pl: 4 }}>
-              <ListItemIcon><AdminPanelSettingsIcon /></ListItemIcon>
-              <ListItemText primary="Monitoring" />
+          </>
+        )}
+
+        {role === 'Health Worker' && (
+          <>
+            <CustomListItem button component={Link} to="calendar">
+              <ListItemIcon><EventIcon /></ListItemIcon>
+              <ListItemText primary="Calendar" />
             </CustomListItem>
-          </List>
-        </Collapse>
-        <CustomListItem button component={Link} to="plans">
-          <ListItemIcon><PlansIcon /></ListItemIcon>
-          <ListItemText primary="Plans" />
-        </CustomListItem>
-        <CustomListItem button component={Link} to="calendar">
-          <ListItemIcon><EventIcon /></ListItemIcon>
-          <ListItemText primary="Calendar" />
-        </CustomListItem>
+            <CustomListItem button component={Link} to="telemedicine">
+              <ListItemIcon><HomeIcon /></ListItemIcon>
+              <ListItemText primary="Telemedicine" />
+            </CustomListItem>
+          </>
+        )}
       </List>
     </div>
   );
@@ -176,8 +164,7 @@ function DashboardLayout(props) {
       </AppBar>
       <Box
         component="nav"
-        sx={{ width: { sm: drawerWidth }, flexShrink:
-        { sm: 0 } }}
+        sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
         aria-label="mailbox folders"
       >
         <Drawer
@@ -190,32 +177,31 @@ function DashboardLayout(props) {
           }}
           sx={{
             display: { xs: 'block', sm: 'none' },
-            '& .MuiDrawer-paper': { boxSizing:
-              'border-box', width: drawerWidth, backgroundColor: '#D9E5F7' },
-            }}
-          >
-            {drawer}
-          </Drawer>
-          <Drawer
-            variant="permanent"
-            sx={{
-              display: { xs: 'none', sm: 'block' },
-              '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth, backgroundColor: '#D9E5F7' },
-            }}
-            open
-          >
-            {drawer}
-          </Drawer>
-        </Box>
-        <Box
-          component="main"
-          sx={{ flexGrow: 1, p: 3, width: { sm: `calc(100% - ${drawerWidth}px)` } }}
+            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth, backgroundColor: '#D9E5F7' },
+          }}
         >
-          <Toolbar />
-          <Outlet /> {/* Render child routes here */}
-        </Box>
+          {drawer}
+        </Drawer>
+        <Drawer
+          variant="permanent"
+          sx={{
+            display: { xs: 'none', sm: 'block' },
+            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth, backgroundColor: '#D9E5F7' },
+          }}
+          open
+        >
+          {drawer}
+        </Drawer>
       </Box>
-    );
-  }
-  
-  export default DashboardLayout;
+      <Box
+        component="main"
+        sx={{ flexGrow: 1, p: 3, width: { sm: `calc(100% - ${drawerWidth}px)` } }}
+      >
+        <Toolbar />
+        <Outlet /> {/* Render child routes here */}
+      </Box>
+    </Box>
+  );
+}
+
+export default DashboardLayout;
