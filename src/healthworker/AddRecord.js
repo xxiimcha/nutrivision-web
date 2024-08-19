@@ -6,9 +6,16 @@ import {
   Typography,
   TextField,
   Grid,
+  MenuItem,
+  Select,
+  InputLabel,
+  FormControl,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios'; // Import axios for API calls
+import axios from 'axios';
+import moment from 'moment';
+import { ToastContainer, toast } from 'react-toastify'; 
+import 'react-toastify/dist/ReactToastify.css'; 
 
 const AddRecord = () => {
   const [formData, setFormData] = useState({
@@ -24,6 +31,7 @@ const AddRecord = () => {
     weightForAge: '',
     heightForAge: '',
     weightForHeight: '',
+    nutritionStatus: '', // New field for identifying nutrition status
   });
 
   const navigate = useNavigate();
@@ -35,19 +43,27 @@ const AddRecord = () => {
     });
   };
 
-  // Example calculations for the status fields based on age, weight, and height
+  const calculateAgeInMonths = () => {
+    if (formData.dob) {
+      const birthDate = moment(formData.dob);
+      const today = moment();
+      const ageInMonths = today.diff(birthDate, 'months');
+      return ageInMonths;
+    }
+    return '';
+  };
+
   const calculateStatuses = () => {
     const { weight, height, ageInMonths } = formData;
-    
-    // Example logic (replace with real calculations)
+
     let weightForAgeStatus = '';
     let heightForAgeStatus = '';
     let weightForHeightStatus = '';
+    let nutritionStatus = ''; // New variable for identifying nutrition status
 
     if (weight && height && ageInMonths) {
       const bmi = weight / ((height / 100) * (height / 100));
 
-      // Calculate Weight for Age Status
       if (ageInMonths <= 24) {
         if (weight < 10) weightForAgeStatus = 'Underweight';
         else if (weight >= 10 && weight < 15) weightForAgeStatus = 'Normal';
@@ -58,7 +74,6 @@ const AddRecord = () => {
         else weightForAgeStatus = 'Overweight';
       }
 
-      // Calculate Height for Age Status
       if (ageInMonths <= 24) {
         if (height < 70) heightForAgeStatus = 'Short';
         else if (height >= 70 && height < 85) heightForAgeStatus = 'Normal';
@@ -69,22 +84,39 @@ const AddRecord = () => {
         else heightForAgeStatus = 'Tall';
       }
 
-      // Calculate Weight for Height Status (BMI-based)
       if (bmi < 18.5) weightForHeightStatus = 'Underweight';
       else if (bmi >= 18.5 && bmi < 24.9) weightForHeightStatus = 'Normal';
       else weightForHeightStatus = 'Overweight';
+
+      // Determine nutrition status
+      if (weightForHeightStatus === 'Underweight') {
+        nutritionStatus = 'Malnourished';
+      } else if (weightForHeightStatus === 'Overweight') {
+        nutritionStatus = 'Obese';
+      } else {
+        nutritionStatus = 'Normal';
+      }
     }
 
-    return { weightForAgeStatus, heightForAgeStatus, weightForHeightStatus };
+    return { weightForAgeStatus, heightForAgeStatus, weightForHeightStatus, nutritionStatus };
   };
 
   useEffect(() => {
-    const { weightForAgeStatus, heightForAgeStatus, weightForHeightStatus } = calculateStatuses();
+    const ageInMonths = calculateAgeInMonths();
+    setFormData((prevFormData) => ({
+      ...prevFormData,
+      ageInMonths: ageInMonths,
+    }));
+  }, [formData.dob]);
+
+  useEffect(() => {
+    const { weightForAgeStatus, heightForAgeStatus, weightForHeightStatus, nutritionStatus } = calculateStatuses();
     setFormData((prevFormData) => ({
       ...prevFormData,
       weightForAge: weightForAgeStatus,
       heightForAge: heightForAgeStatus,
       weightForHeight: weightForHeightStatus,
+      nutritionStatus: nutritionStatus, // Set nutrition status
     }));
   }, [formData.weight, formData.height, formData.ageInMonths]);
 
@@ -92,9 +124,12 @@ const AddRecord = () => {
     e.preventDefault();
     try {
       const response = await axios.post('http://localhost:5000/api/patient-records/add', formData);
-      console.log('Record added:', response.data);
-      navigate('/dashboard/records');
+      toast.success('Record added successfully!');
+      setTimeout(() => {
+        navigate('/dashboard/records-management');
+      }, 2000);
     } catch (error) {
+      toast.error('Error adding record. Please try again.');
       console.error('Error adding record:', error);
     }
   };
@@ -151,14 +186,18 @@ const AddRecord = () => {
             />
           </Grid>
           <Grid item xs={12} sm={6}>
-            <TextField
-              label="Patient Gender"
-              name="gender"
-              value={formData.gender}
-              onChange={handleChange}
-              fullWidth
-              required
-            />
+            <FormControl fullWidth required>
+              <InputLabel>Patient Gender</InputLabel>
+              <Select
+                name="gender"
+                value={formData.gender}
+                onChange={handleChange}
+              >
+                <MenuItem value="Male">Male</MenuItem>
+                <MenuItem value="Female">Female</MenuItem>
+                <MenuItem value="Other">Other</MenuItem>
+              </Select>
+            </FormControl>
           </Grid>
           <Grid item xs={12} sm={6}>
             <TextField
@@ -202,6 +241,7 @@ const AddRecord = () => {
               onChange={handleChange}
               fullWidth
               required
+              disabled // This field is now automatically calculated and disabled
             />
           </Grid>
           <Grid item xs={12} sm={6}>
@@ -231,6 +271,15 @@ const AddRecord = () => {
               disabled
             />
           </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              label="Nutrition Status"
+              name="nutritionStatus"
+              value={formData.nutritionStatus}
+              fullWidth
+              disabled
+            />
+          </Grid>
         </Grid>
         <Box mt={2} display="flex" justifyContent="flex-end">
           <Button variant="contained" color="primary" type="submit">
@@ -238,6 +287,7 @@ const AddRecord = () => {
           </Button>
         </Box>
       </Box>
+      <ToastContainer />
     </Container>
   );
 };

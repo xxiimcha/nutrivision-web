@@ -26,11 +26,13 @@ const adminRoutes = require('./routes/admin');
 const loginRoutes = require('./routes/login');
 const eventRoutes = require('./routes/events');
 const patientRecordsRoutes = require('./routes/patientRecords');  // Add patient records routes
+const mealPlanRoutes = require('./routes/mealPlans');
 
 app.use('/api/admins', adminRoutes);
 app.use('/api/login', loginRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api/patient-records', patientRecordsRoutes);  // Use patient records routes
+app.use('/api/meal-plans', mealPlanRoutes);
 
 // Serve static assets if in production
 if (process.env.NODE_ENV === 'production') {

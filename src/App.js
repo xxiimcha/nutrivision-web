@@ -29,6 +29,7 @@ import HealthWorkerCalendar from './healthworker/Calendar';
 import HealthWorkerTelemedicine from './healthworker/TeleMedicine';
 import HealthWorkerRecords from './healthworker/RecordsManagement';  // Corrected import
 import HealthWorkerNewRecord from './healthworker/AddRecord'; // Corrected import
+import PatientDetails from './healthworker/PatientDetails';
 
 const theme = createTheme();
 
@@ -58,7 +59,7 @@ function AppRoutes() {
             <Route path="notifications" element={<Notifications />} />
             <Route path="nutritional-status" element={<NutritionalStatus />} />
             <Route path="food-management" element={<FoodManagement />} />
-            <Route path="meal-plan/:name" element={<MealPlan />} />
+            <Route path="meal-plan/:id/:week" element={<MealPlan />} />
             <Route path="records-management" element={<RecordsManagement />} />
           </>
         )}
@@ -69,6 +70,7 @@ function AppRoutes() {
             <Route path="telemedicine" element={<HealthWorkerTelemedicine />} />
             <Route path="records-management" element={<HealthWorkerRecords />} />
             <Route path="add-record" element={<HealthWorkerNewRecord />} />
+            <Route path="patient-details/:recordId" element={<PatientDetails />} />
           </>
         )}
       </Route>

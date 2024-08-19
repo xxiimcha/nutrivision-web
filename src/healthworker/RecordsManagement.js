@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Button,
@@ -12,60 +12,29 @@ import {
   Paper,
   TableContainer,
   TextField,
-  IconButton,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import PrintIcon from '@mui/icons-material/Print';
 import AddIcon from '@mui/icons-material/Add';
+import axios from 'axios';
 
 const RecordsManagement = () => {
-  const [records, setRecords] = useState([
-    {
-      address: '123 Main St.',
-      parentName: 'Mary, Doe',
-      patientName: 'John, Doe',
-      dob: '06-15-2018',
-      gender: 'Male',
-      height: '120 CM',
-      weight: '20 KG',
-      dateOfWeighing: '06-15-2024',
-      ageInMonths: '72',
-      weightForAge: 'Underweight',
-      heightForAge: 'Tall',
-      weightForHeight: 'Underweight',
-    },
-    {
-      address: '456 Oak St.',
-      parentName: 'Robert, Smith',
-      patientName: 'Jane, Smith',
-      dob: '08-21-2017',
-      gender: 'Female',
-      height: '130 CM',
-      weight: '22 KG',
-      dateOfWeighing: '08-21-2024',
-      ageInMonths: '82',
-      weightForAge: 'Underweight',
-      heightForAge: 'Tall',
-      weightForHeight: 'Underweight',
-    },
-    {
-      address: '789 Pine St.',
-      parentName: 'Susan, Brown',
-      patientName: 'Tom, Brown',
-      dob: '04-10-2019',
-      gender: 'Male',
-      height: '110 CM',
-      weight: '18 KG',
-      dateOfWeighing: '04-10-2024',
-      ageInMonths: '62',
-      weightForAge: 'Underweight',
-      heightForAge: 'Tall',
-      weightForHeight: 'Underweight',
-    },
-  ]);
-
+  const [records, setRecords] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchRecords = async () => {
+      try {
+        const response = await axios.get('http://localhost:5000/api/patient-records');
+        setRecords(response.data);
+      } catch (error) {
+        console.error('Error fetching records:', error);
+      }
+    };
+
+    fetchRecords();
+  }, []);
 
   const handleSearch = (event) => {
     setSearchTerm(event.target.value);
@@ -77,6 +46,14 @@ const RecordsManagement = () => {
 
   const handleAddRecord = () => {
     navigate('/dashboard/add-record');
+  };
+
+  const handleViewDetails = (recordId) => {
+    navigate(`/dashboard/patient-details/${recordId}`);
+  };
+
+  const extractDate = (datetime) => {
+    return datetime.split('T')[0];
   };
 
   return (
@@ -110,6 +87,7 @@ const RecordsManagement = () => {
         <Table>
           <TableHead>
             <TableRow>
+              <TableCell>Reference Number</TableCell> {/* Added this line */}
               <TableCell>Address</TableCell>
               <TableCell>Name of Parent</TableCell>
               <TableCell>Full name of Patient</TableCell>
@@ -118,27 +96,30 @@ const RecordsManagement = () => {
               <TableCell>Patient Height (CM)</TableCell>
               <TableCell>Patient Weight (KG)</TableCell>
               <TableCell>Date of Weighing</TableCell>
-              <TableCell>Age in Months</TableCell>
-              <TableCell>Weight for Age Status</TableCell>
-              <TableCell>Height for Age Status</TableCell>
-              <TableCell>Weight for Height Status</TableCell>
+              <TableCell>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {filteredRecords.map((record, index) => (
               <TableRow key={index}>
+                <TableCell>{record.referenceNumber}</TableCell> {/* Added this line */}
                 <TableCell>{record.address}</TableCell>
                 <TableCell>{record.parentName}</TableCell>
                 <TableCell>{record.patientName}</TableCell>
-                <TableCell>{record.dob}</TableCell>
+                <TableCell>{extractDate(record.dob)}</TableCell>
                 <TableCell>{record.gender}</TableCell>
                 <TableCell>{record.height}</TableCell>
                 <TableCell>{record.weight}</TableCell>
-                <TableCell>{record.dateOfWeighing}</TableCell>
-                <TableCell>{record.ageInMonths}</TableCell>
-                <TableCell style={{ backgroundColor: 'red', color: 'white' }}>{record.weightForAge}</TableCell>
-                <TableCell style={{ backgroundColor: 'red', color: 'white' }}>{record.heightForAge}</TableCell>
-                <TableCell style={{ backgroundColor: 'red', color: 'white' }}>{record.weightForHeight}</TableCell>
+                <TableCell>{extractDate(record.dateOfWeighing)}</TableCell>
+                <TableCell>
+                  <Button 
+                    variant="contained" 
+                    color="primary" 
+                    onClick={() => handleViewDetails(record._id)}
+                  >
+                    View
+                  </Button>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
