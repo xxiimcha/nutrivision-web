@@ -13,6 +13,7 @@ import Admin from './Admin';
 import Records from './components/Records';
 import Monitoring from './Monitoring';
 import Status from './Status';
+import Profile from './Profile'; // Import the Profile component
 import { UserProvider, UserContext } from './context/UserContext';
 
 // Import Nutritionist components
@@ -42,6 +43,10 @@ function AppRoutes() {
       <Route path="/login" element={<Login />} />
       <Route path="/dashboard/*" element={<DashboardLayout />}>
         <Route index element={<Dashboard />} />
+
+        {/* Profile Route */}
+        <Route path="profile" element={<Profile />} /> 
+
         {(role === 'Admin' || role === 'Super Admin') && (
           <>
             <Route path="plans" element={<Plans />} />
@@ -50,7 +55,6 @@ function AppRoutes() {
             <Route path="admin" element={<Admin />} />
             <Route path="status" element={<Status />} />
             <Route path="records" element={<Records />} />
-            <Route path="monitoring" element={<Monitoring />} />
           </>
         )}
         {role === 'Nutritionist' && (
@@ -61,6 +65,7 @@ function AppRoutes() {
             <Route path="food-management" element={<FoodManagement />} />
             <Route path="meal-plan/:id/:week" element={<MealPlan />} />
             <Route path="records-management" element={<RecordsManagement />} />
+            <Route path="monitoring" element={<Monitoring />} />
           </>
         )}
         {role === 'Health Worker' && (
@@ -71,6 +76,7 @@ function AppRoutes() {
             <Route path="records-management" element={<HealthWorkerRecords />} />
             <Route path="add-record" element={<HealthWorkerNewRecord />} />
             <Route path="patient-details/:recordId" element={<PatientDetails />} />
+            <Route path="monitoring" element={<Monitoring />} />
           </>
         )}
       </Route>

@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import {
-  Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Button,
-  Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Grid, Alert, TextField
+  Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, TextField,
+  Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Grid, IconButton
 } from '@mui/material';
+import SearchIcon from '@mui/icons-material/Search';
 import moment from 'moment';
 
 const initialData = [
@@ -16,7 +17,8 @@ const initialData = [
     height: 120,
     goalWeight: 22,
     weeklyImprovement: 0.1,
-    cumulativeImprovement: 0
+    cumulativeImprovement: 0,
+    improvementLogs: [0.1],
   },
   {
     address: '456 Oak St',
@@ -28,7 +30,8 @@ const initialData = [
     height: 130,
     goalWeight: 25,
     weeklyImprovement: 0.2,
-    cumulativeImprovement: 0
+    cumulativeImprovement: 0,
+    improvementLogs: [0.2],
   },
   {
     address: '789 Pine St',
@@ -40,7 +43,8 @@ const initialData = [
     height: 110,
     goalWeight: 20,
     weeklyImprovement: 0.15,
-    cumulativeImprovement: 0
+    cumulativeImprovement: 0,
+    improvementLogs: [0.15],
   },
 ];
 
@@ -87,254 +91,162 @@ const calculatePercentageOfGoalAchieved = (initialWeight, cumulativeImprovement,
 
 const Monitoring = () => {
   const [data, setData] = useState(initialData);
-  const [open, setOpen] = useState(false);
-  const [newRecord, setNewRecord] = useState({
-    address: '',
-    parentName: '',
-    childName: '',
-    indigenous: '',
-    dateOfBirth: '',
-    weight: '',
-    height: '',
-    goalWeight: '',
-    weeklyImprovement: '',
-    cumulativeImprovement: ''
-  });
-  const [error, setError] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [openModal, setOpenModal] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(null);
+  const [newImprovement, setNewImprovement] = useState('');
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setNewRecord({ ...newRecord, [name]: value });
+  const handleOpenModal = (index) => {
+    setSelectedIndex(index);
+    setOpenModal(true);
   };
 
-  const validateForm = () => {
-    const { address, parentName, childName, indigenous, dateOfBirth, weight, height, goalWeight, weeklyImprovement } = newRecord;
-    if (!address || !parentName || !childName || !indigenous || !dateOfBirth || !weight || !height || !goalWeight || !weeklyImprovement) {
-      setError('All fields are required.');
-      return false;
+  const handleCloseModal = () => {
+    setOpenModal(false);
+    setNewImprovement('');
+  };
+
+  const handleAddImprovement = () => {
+    if (newImprovement) {
+      const updatedData = data.map((item, i) => {
+        if (i === selectedIndex) {
+          const newLogs = [...item.improvementLogs, parseFloat(newImprovement)];
+          const newCumulativeImprovement = newLogs.reduce((acc, val) => acc + val, 0);
+          return { ...item, improvementLogs: newLogs, cumulativeImprovement: newCumulativeImprovement };
+        }
+        return item;
+      });
+      setData(updatedData);
+      handleCloseModal();
     }
-    if (weight <= 0 || height <= 0 || goalWeight <= 0 || weeklyImprovement < 0) {
-      setError('Weight, height, goal weight, and weekly improvement must be positive numbers.');
-      return false;
-    }
-    setError('');
-    return true;
   };
 
-  const handleAddRecord = () => {
-    if (!validateForm()) return;
-    setData([...data, { ...newRecord, cumulativeImprovement: 0 }]);
-    setOpen(false);
-    setNewRecord({
-      address: '',
-      parentName: '',
-      childName: '',
-      indigenous: '',
-      dateOfBirth: '',
-      weight: '',
-      height: '',
-      goalWeight: '',
-      weeklyImprovement: '',
-      cumulativeImprovement: ''
-    });
-  };
-
-  const handleWeeklyImprovementChange = (index, value) => {
-    const updatedData = data.map((item, i) => {
-      if (i === index) {
-        const newCumulativeImprovement = parseFloat(item.cumulativeImprovement) + parseFloat(value);
-        return { ...item, weeklyImprovement: value, cumulativeImprovement: newCumulativeImprovement };
-      }
-      return item;
-    });
-    setData(updatedData);
-  };
+  const filteredData = data.filter(row =>
+    row.childName.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div style={{ padding: 20 }}>
-      <Button variant="contained" color="primary" onClick={() => setOpen(true)}>
-        Add Record
-      </Button>
-      <Dialog open={open} onClose={() => setOpen(false)}>
-        <DialogTitle>Add New Record</DialogTitle>
+      <Grid container alignItems="center" spacing={2} style={{ marginBottom: 20 }}>
+        <Grid item>
+          <TextField
+            label="Search by name"
+            variant="outlined"
+            size="small"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <IconButton edge="start">
+                  <SearchIcon />
+                </IconButton>
+              ),
+            }}
+          />
+        </Grid>
+      </Grid>
+      
+      <TableContainer component={Paper} style={{ marginTop: 20 }}>
+        <Table aria-label="simple table">
+          <TableHead>
+            <TableRow sx={{ backgroundColor: '#B5CEF7' }}>
+              <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>Full Name of Child</TableCell>
+              <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>Age (Months)</TableCell>
+              <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>Weight (kg)</TableCell>
+              <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>Height (cm)</TableCell>
+              <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>Goal Weight (kg)</TableCell>
+              <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>Weekly Improvement (kg)</TableCell>
+              <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>Percentage of Goal Achieved</TableCell>
+              <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>Status</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {filteredData.map((row, index) => {
+              const ageInMonths = calculateAgeInMonths(row.dateOfBirth);
+              const weightForAgeStatus = getWeightForAgeStatus(ageInMonths, row.weight);
+              const heightForAgeStatus = getHeightForAgeStatus(ageInMonths, row.height);
+              const weightForHeightStatus = getWeightForHeightStatus(row.weight, row.height);
+              const percentageOfGoalAchieved = calculatePercentageOfGoalAchieved(row.weight, row.cumulativeImprovement, row.goalWeight);
+              let status = 'Normal';
+              if (
+                weightForAgeStatus === 'Underweight' ||
+                heightForAgeStatus === 'Short' ||
+                weightForHeightStatus === 'Underweight'
+              ) {
+                status = 'Undernourished';
+              }
+              return (
+                <TableRow key={index}>
+                  <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>{row.childName}</TableCell>
+                  <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>{ageInMonths}</TableCell>
+                  <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>{row.weight}</TableCell>
+                  <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>{row.height}</TableCell>
+                  <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>{row.goalWeight}</TableCell>
+                  <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>
+                    <Button
+                      variant="outlined"
+                      onClick={() => handleOpenModal(index)}
+                    >
+                      View Logs
+                    </Button>
+                  </TableCell>
+                  <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>{percentageOfGoalAchieved}%</TableCell>
+                  <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>{status}</TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </TableContainer>
+
+      {/* Modal for Weekly Improvement Logs */}
+      <Dialog open={openModal} onClose={handleCloseModal}>
+        <DialogTitle>Weekly Improvement Logs</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Please fill in the details to add a new record.
+            Improvement logs for {selectedIndex !== null && data[selectedIndex].childName}
           </DialogContentText>
-          {error && <Alert severity="error">{error}</Alert>}
-          <Grid container spacing={2}>
+          <TableContainer component={Paper} style={{ marginTop: 20 }}>
+            <Table aria-label="simple table">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Week</TableCell>
+                  <TableCell>Improvement (kg)</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {selectedIndex !== null && data[selectedIndex].improvementLogs.map((log, i) => (
+                  <TableRow key={i}>
+                    <TableCell>Week {i + 1}</TableCell>
+                    <TableCell>{log}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+          <Grid container spacing={2} style={{ marginTop: 20 }}>
             <Grid item xs={12}>
               <TextField
-                autoFocus
-                margin="dense"
-                name="address"
-                label="Address"
-                type="text"
                 fullWidth
-                value={newRecord.address}
-                onChange={handleInputChange}
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField
-                margin="dense"
-                name="parentName"
-                label="Name of Parent"
-                type="text"
-                fullWidth
-                value={newRecord.parentName}
-                onChange={handleInputChange}
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField
-                margin="dense"
-                name="childName"
-                label="Full Name of Child"
-                type="text"
-                fullWidth
-                value={newRecord.childName}
-                onChange={handleInputChange}
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField
-                margin="dense"
-                name="indigenous"
-                label="Indigenous"
-                type="text"
-                fullWidth
-                value={newRecord.indigenous}
-                onChange={handleInputChange}
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField
-                margin="dense"
-                name="dateOfBirth"
-                label="Date of Birth"
-                type="date"
-                fullWidth
-                InputLabelProps={{
-                  shrink: true,
-                }}
-                value={newRecord.dateOfBirth}
-                onChange={handleInputChange}
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField
-                margin="dense"
-                name="weight"
-                label="Weight (kg)"
+                label="Add New Improvement (kg)"
                 type="number"
-                fullWidth
-                value={newRecord.weight}
-                onChange={handleInputChange}
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField
-                margin="dense"
-                name="height"
-                label="Height (cm)"
-                type="number"
-                fullWidth
-                value={newRecord.height}
-                onChange={handleInputChange}
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField
-                margin="dense"
-                name="goalWeight"
-                label="Goal Weight (kg)"
-                type="number"
-                fullWidth
-                value={newRecord.goalWeight}
-                onChange={handleInputChange}
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField
-                margin="dense"
-                name="weeklyImprovement"
-                label="Weekly Improvement (kg)"
-                type="number"
-                fullWidth
-                value={newRecord.weeklyImprovement}
-                onChange={handleInputChange}
+                value={newImprovement}
+                onChange={(e) => setNewImprovement(e.target.value)}
               />
             </Grid>
           </Grid>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpen(false)} color="
-          primary">
-          Cancel
-        </Button>
-        <Button onClick={handleAddRecord} color="primary">
-          Add
-        </Button>
-      </DialogActions>
-    </Dialog>
-    <TableContainer component={Paper} style={{ marginTop: 20 }}>
-      <Table aria-label="simple table">
-        <TableHead>
-          <TableRow sx={{ backgroundColor: '#B5CEF7' }}>
-            <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>Full Name of Child</TableCell>
-            <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>Age (Months)</TableCell>
-            <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>Weight (kg)</TableCell>
-            <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>Height (cm)</TableCell>
-            <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>Goal Weight (kg)</TableCell>
-            <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>Weekly Improvement (kg)</TableCell>
-            <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>Percentage of Goal Achieved</TableCell>
-            <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>Status</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {data.map((row, index) => {
-            const ageInMonths = calculateAgeInMonths(row.dateOfBirth);
-            const weightForAgeStatus = getWeightForAgeStatus(ageInMonths, row.weight);
-            const heightForAgeStatus = getHeightForAgeStatus(ageInMonths, row.height);
-            const weightForHeightStatus = getWeightForHeightStatus(row.weight, row.height);
-            const percentageOfGoalAchieved = calculatePercentageOfGoalAchieved(row.weight, row.cumulativeImprovement, row.goalWeight);
-            let status = 'Normal';
-            if (
-              weightForAgeStatus === 'Underweight' ||
-              heightForAgeStatus === 'Short' ||
-              weightForHeightStatus === 'Underweight'
-            ) {
-              status = 'Undernourished';
-            }
-            return (
-              <TableRow key={index}>
-                <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>{row.childName}</TableCell>
-                <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>{ageInMonths}</TableCell>
-                <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>{row.weight}</TableCell>
-                <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>{row.height}</TableCell>
-                <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>{row.goalWeight}</TableCell>
-                <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>
-                  <TextField
-                    margin="dense"
-                    name="weeklyImprovement"
-                    label="Weekly Improvement (kg)"
-                    type="number"
-                    fullWidth
-                    value={row.weeklyImprovement}
-                    onChange={(e) => handleWeeklyImprovementChange(index, e.target.value)}
-                  />
-                </TableCell>
-                <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>{percentageOfGoalAchieved}%</TableCell>
-                <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>{status}</TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
-    </TableContainer>
-  </div>
-);
+          <Button onClick={handleCloseModal} color="primary">
+            Cancel
+          </Button>
+          <Button onClick={handleAddImprovement} color="primary">
+            Add Improvement
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </div>
+  );
 };
 
 export default Monitoring;

@@ -29,6 +29,10 @@ const MealPlan = () => {
   const [mealDetails, setMealDetails] = useState({ mainDish: '', drinks: '', vitamins: '' });
   const navigate = useNavigate();
 
+  // Calculate start and end dates of the week
+  const startOfWeek = moment(week).startOf('week').format('YYYY-MM-DD');
+  const endOfWeek = moment(week).endOf('week').format('YYYY-MM-DD');
+
   useEffect(() => {
     const fetchMealPlanAndPatientInfo = async () => {
       try {
@@ -37,6 +41,10 @@ const MealPlan = () => {
             axios.get(`http://localhost:5000/api/meal-plans/${id}/${week}`),
             axios.get(`http://localhost:5000/api/patient-records/${id}`),
           ]);
+
+          // Log the responses to ensure data is coming in as expected
+          console.log('Meal Plan Response:', mealPlanResponse.data);
+          console.log('Patient Info Response:', patientResponse.data);
 
           // Setting the meal plan data
           if (mealPlanResponse.data) {
@@ -137,6 +145,9 @@ const MealPlan = () => {
         </Typography>
         <Typography variant="subtitle1">
           Height: {patientInfo.height}, Weight: {patientInfo.weight}
+        </Typography>
+        <Typography variant="subtitle1">
+          Week: {startOfWeek} to {endOfWeek}
         </Typography>
       </Box>
       <Box display="flex" justifyContent="space-between" mb={2}>
