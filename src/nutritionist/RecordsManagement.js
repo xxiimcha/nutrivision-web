@@ -84,6 +84,38 @@ function RecordsManagement() {
     return colors[type][status] || 'inherit';
   };
 
+  // Function to handle printing the table
+  const handlePrint = () => {
+    // Create a new window for printing
+    const printWindow = window.open('', '', 'width=900,height=650');
+    printWindow.document.write('<html><head><title>Print Patient Records</title>');
+    // Add styles for the print view
+    printWindow.document.write(`
+      <style>
+        body {
+          font-family: Arial, sans-serif;
+        }
+        table {
+          width: 100%;
+          border-collapse: collapse;
+        }
+        th, td {
+          border: 1px solid black;
+          padding: 8px;
+          text-align: left;
+        }
+        th {
+          background-color: #f2f2f2;
+        }
+      </style>
+    `);
+    printWindow.document.write('</head><body >');
+    printWindow.document.write(document.getElementById('printableTable').outerHTML);
+    printWindow.document.write('</body></html>');
+    printWindow.document.close();
+    printWindow.print();
+  };
+
   return (
     <Box p={2}>
       <Typography variant="h4" component="h2" gutterBottom>
@@ -98,15 +130,12 @@ function RecordsManagement() {
           fullWidth
           sx={{ marginRight: 2 }}
         />
-        <Button variant="contained" color="primary" sx={{ marginRight: 2 }}>
-          ADD RECORD
-        </Button>
-        <Button variant="contained" color="success">
+        <Button variant="contained" color="success" onClick={handlePrint}>
           PRINT
         </Button>
       </Box>
       <TableContainer component={Paper}>
-        <Table>
+        <Table id="printableTable">
           <TableHead>
             <TableRow>
               <TableCell>Address</TableCell>
@@ -121,7 +150,7 @@ function RecordsManagement() {
               <TableCell>Weight for age Status</TableCell>
               <TableCell>Height for age Status</TableCell>
               <TableCell>Weight for Height Status</TableCell>
-              <TableCell>Nutritional Status</TableCell> {/* New Column */}
+              <TableCell>Nutritional Status</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -132,11 +161,11 @@ function RecordsManagement() {
                   <TableCell>{record.address}</TableCell>
                   <TableCell>{record.parentName}</TableCell>
                   <TableCell>{record.patientName}</TableCell>
-                  <TableCell>{formatDate(record.dob)}</TableCell> {/* Formatted date */}
+                  <TableCell>{formatDate(record.dob)}</TableCell>
                   <TableCell>{record.gender}</TableCell>
                   <TableCell>{record.height} CM</TableCell>
                   <TableCell>{record.weight} KG</TableCell>
-                  <TableCell>{formatDate(record.dateOfWeighing)}</TableCell> {/* Formatted date */}
+                  <TableCell>{formatDate(record.dateOfWeighing)}</TableCell>
                   <TableCell>{record.ageInMonths}</TableCell>
                   <TableCell
                     style={{ backgroundColor: getStatusColor(record.weightForAge, 'weightForAge') }}

@@ -42,33 +42,8 @@ const MealPlan = () => {
             axios.get(`http://localhost:5000/api/patient-records/${id}`),
           ]);
 
-          // Log the responses to ensure data is coming in as expected
-          console.log('Meal Plan Response:', mealPlanResponse.data);
-          console.log('Patient Info Response:', patientResponse.data);
-
-          // Setting the meal plan data
-          if (mealPlanResponse.data) {
-            setMealPlan(mealPlanResponse.data);
-          } else {
-            setMealPlan({
-              Monday: { breakfast: {}, lunch: {}, dinner: {}, recommended: false },
-              Tuesday: { breakfast: {}, lunch: {}, dinner: {}, recommended: false },
-              Wednesday: { breakfast: {}, lunch: {}, dinner: {}, recommended: false },
-              Thursday: { breakfast: {}, lunch: {}, dinner: {}, recommended: false },
-              Friday: { breakfast: {}, lunch: {}, dinner: {}, recommended: false },
-              Saturday: { breakfast: {}, lunch: {}, dinner: {}, recommended: false },
-              Sunday: { breakfast: {}, lunch: {}, dinner: {}, recommended: false },
-            });
-          }
-
-          // Setting the patient information
-          if (patientResponse.data) {
-            setPatientInfo({
-              patientName: patientResponse.data.patientName,
-              height: patientResponse.data.height,
-              weight: patientResponse.data.weight,
-            });
-          }
+          setMealPlan(mealPlanResponse.data);
+          setPatientInfo(patientResponse.data);
         }
       } catch (error) {
         console.error('Error fetching meal plan or patient information:', error);
@@ -88,19 +63,10 @@ const MealPlan = () => {
     navigate(`/dashboard/meal-plan/${id}/${newWeek.format('YYYY-MM-DD')}`);
   };
 
-  const getStatusButton = (status) => {
-    if (status === 'done') {
-      return <Button variant="contained" color="success">DONE</Button>;
-    } else if (status === 'in-progress') {
-      return <Button variant="contained" color="warning">IN PROGRESS</Button>;
-    } else {
-      return null;
-    }
-  };
-
   const handleOpenModal = (day, mealType) => {
     setSelectedDay(day);
     setSelectedMealType(mealType);
+    setMealDetails(mealPlan[day]?.[mealType] || { mainDish: '', drinks: '', vitamins: '' });
     setOpen(true);
   };
 
@@ -132,6 +98,27 @@ const MealPlan = () => {
     } catch (error) {
       console.error('Error saving meal:', error);
     }
+  };
+
+  const handleApproveMeal = async (day, mealType) => {
+    const updatedMealPlan = { ...mealPlan };
+
+    if (updatedMealPlan[day] && updatedMealPlan[day][mealType]) {
+      updatedMealPlan[day][mealType].approved = true;
+    }
+
+    try {
+      await axios.post(`http://localhost:5000/api/meal-plans/${id}/${week}`, updatedMealPlan);
+      setMealPlan(updatedMealPlan);
+    } catch (error) {
+      console.error('Error approving meal:', error);
+    }
+  };
+
+  const allMealsApproved = (day) => {
+    return ['breakfast', 'lunch', 'dinner'].every(
+      (mealType) => mealPlan[day]?.[mealType]?.approved
+    );
   };
 
   return (
@@ -173,69 +160,48 @@ const MealPlan = () => {
             {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => (
               <TableRow key={day}>
                 <TableCell>{day}</TableCell>
-                <TableCell>
-                  <div>Main dish: {mealPlan[day]?.breakfast?.mainDish || 'No meal planned'}</div>
-                  <div>Drinks: {mealPlan[day]?.breakfast?.drinks || 'No meal planned'}</div>
-                  <div>Vitamins: {mealPlan[day]?.breakfast?.vitamins || 'No meal planned'}</div>
-                  {mealPlan[day]?.breakfast?.mainDish ? (
-                    <>
-                      <Button variant="contained" color="primary" sx={{ mt: 1 }}>
-                        View proof of meal
+                {['breakfast', 'lunch', 'dinner'].map((mealType) => (
+                  <TableCell key={mealType}>
+                    <div>Main dish: {mealPlan[day]?.[mealType]?.mainDish || 'No meal planned'}</div>
+                    <div>Drinks: {mealPlan[day]?.[mealType]?.drinks || 'No meal planned'}</div>
+                    <div>Vitamins: {mealPlan[day]?.[mealType]?.vitamins || 'No meal planned'}</div>
+                    {mealPlan[day]?.[mealType]?.approved ? (
+                      <Button variant="contained" color="success" sx={{ mt: 1 }} disabled>
+                        Approved
                       </Button>
-                      {getStatusButton(mealPlan[day]?.breakfast?.status)}
-                    </>
-                  ) : (
-                    <Button variant="contained" color="primary" sx={{ mt: 1 }} onClick={() => handleOpenModal(day, 'breakfast')}>
-                      Add Meal
-                    </Button>
-                  )}
-                </TableCell>
-                <TableCell>
-                  <div>Main dish: {mealPlan[day]?.lunch?.mainDish || 'No meal planned'}</div>
-                  <div>Drinks: {mealPlan[day]?.lunch?.drinks || 'No meal planned'}</div>
-                  <div>Vitamins: {mealPlan[day]?.lunch?.vitamins || 'No meal planned'}</div>
-                  {mealPlan[day]?.lunch?.mainDish ? (
-                    <>
-                      <Button variant="contained" color="primary" sx={{ mt: 1 }}>
-                        View proof of meal
-                      </Button>
-                      {getStatusButton(mealPlan[day]?.lunch?.status)}
-                    </>
-                  ) : (
-                    <Button variant="contained" color="primary" sx={{ mt: 1 }} onClick={() => handleOpenModal(day, 'lunch')}>
-                      Add Meal
-                    </Button>
-                  )}
-                </TableCell>
-                <TableCell>
-                  <div>Main dish: {mealPlan[day]?.dinner?.mainDish || 'No meal planned'}</div>
-                  <div>Drinks: {mealPlan[day]?.dinner?.drinks || 'No meal planned'}</div>
-                  <div>Vitamins: {mealPlan[day]?.dinner?.vitamins || 'No meal planned'}</div>
-                  {mealPlan[day]?.dinner?.mainDish ? (
-                    <>
-                      <Button variant="contained" color="primary" sx={{ mt: 1 }}>
-                        View proof of meal
-                      </Button>
-                      {getStatusButton(mealPlan[day]?.dinner?.status)}
-                    </>
-                  ) : (
-                    <Button variant="contained" color="primary" sx={{ mt: 1 }} onClick={() => handleOpenModal(day, 'dinner')}>
-                      Add Meal
-                    </Button>
-                  )}
-                </TableCell>
+                    ) : (
+                      <>
+                        <Button
+                          variant="contained"
+                          color="primary"
+                          sx={{ mt: 1, mr: 1 }}
+                          onClick={() => handleOpenModal(day, mealType)}
+                        >
+                          {mealPlan[day]?.[mealType]?.mainDish ? 'Edit Meal' : 'Add Meal'}
+                        </Button>
+                        <Button
+                          variant="contained"
+                          color="success"
+                          sx={{ mt: 1 }}
+                          onClick={() => handleApproveMeal(day, mealType)}
+                        >
+                          Approve
+                        </Button>
+                      </>
+                    )}
+                  </TableCell>
+                ))}
                 <TableCell>
                   <Switch
                     checked={mealPlan[day]?.recommended || false}
                     color="primary"
                     inputProps={{ 'aria-label': 'recommended-switch' }}
                   />
-                  <Button variant="contained" color="success" sx={{ mt: 1 }}>
-                    SEND MEAL PLAN
-                  </Button>
-                  <Button variant="contained" color="info" sx={{ mt: 1 }}>
-                    EDIT
-                  </Button>
+                  {allMealsApproved(day) && (
+                    <Button variant="contained" color="success" sx={{ mt: 1 }}>
+                      SEND MEAL PLAN
+                    </Button>
+                  )}
                 </TableCell>
               </TableRow>
             ))}
@@ -243,7 +209,7 @@ const MealPlan = () => {
         </Table>
       </TableContainer>
 
-      {/* Modal for adding meal */}
+      {/* Modal for adding/editing meal */}
       <Modal open={open} onClose={handleCloseModal}>
         <Box
           sx={{
@@ -259,7 +225,7 @@ const MealPlan = () => {
           }}
         >
           <Typography variant="h6" gutterBottom>
-            Add {selectedMealType} for {selectedDay}
+            {selectedMealType.charAt(0).toUpperCase() + selectedMealType.slice(1)} for {selectedDay}
           </Typography>
           <TextField
             label="Main Dish"

@@ -5,6 +5,7 @@ const mealSchema = new mongoose.Schema({
   drinks: { type: String, default: '' },
   vitamins: { type: String, default: '' },
   status: { type: String, enum: ['done', 'in-progress', ''], default: '' },
+  approved: { type: Boolean, default: false },  // Add this field to track approval status
 });
 
 const daySchema = new mongoose.Schema({
