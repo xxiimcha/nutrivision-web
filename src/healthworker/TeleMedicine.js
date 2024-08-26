@@ -14,6 +14,7 @@ import {
   ListItemAvatar,
   Grid,
   IconButton,
+  Paper,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import VideocamIcon from '@mui/icons-material/Videocam';
@@ -47,11 +48,6 @@ const Telemed = () => {
   };
 
   const handleSendMessage = async () => {
-    console.log('Send button clicked');
-    console.log('userId:', userId);
-    console.log('selectedUser:', selectedUser);
-    console.log('newMessage:', newMessage);
-
     if (newMessage.trim() !== '' && userId && selectedUser) {
       try {
         const response = await axios.post('http://localhost:5000/api/messages/send', {
@@ -60,21 +56,34 @@ const Telemed = () => {
           text: newMessage,
         });
 
-        console.log('Message sent:', response.data);
-
         setMessages([...messages, response.data]);
         setNewMessage('');
       } catch (error) {
         console.error('Error sending message:', error);
       }
-    } else {
-      console.log('Validation failed: Message not sent.');
     }
   };
 
-  const handleUserClick = (user) => {
+  const handleUserClick = async (user) => {
     setSelectedUser(user);
-    setMessages([]); // Clear messages for the new conversation
+
+    try {
+      // Fetch the previous messages between the logged-in user and the selected user
+      const response = await axios.get('http://localhost:5000/api/messages/conversation', {
+        params: {
+          user1: userId,
+          user2: user._id,
+        },
+      });
+      setMessages(response.data); // Set the messages state with the fetched conversation
+    } catch (error) {
+      console.error('Error fetching messages:', error);
+    }
+  };
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return isNaN(date.getTime()) ? 'Invalid Date' : date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
   return (
@@ -114,7 +123,16 @@ const Telemed = () => {
           <List>
             {/* Display fetched users in the chat list */}
             {users.map((user) => (
-              <ListItem button key={user._id} onClick={() => handleUserClick(user)}>
+              <ListItem
+                button
+                key={user._id}
+                onClick={() => handleUserClick(user)}
+                selected={selectedUser?._id === user._id} // Highlight if this is the selected user
+                sx={{
+                  bgcolor: selectedUser?._id === user._id ? 'primary.light' : 'inherit',
+                  color: selectedUser?._id === user._id ? 'primary.contrastText' : 'inherit',
+                }}
+              >
                 <ListItemAvatar>
                   <Avatar>{user.email.charAt(0).toUpperCase()}</Avatar>
                 </ListItemAvatar>
@@ -170,12 +188,23 @@ const Telemed = () => {
             <Box sx={{ flexGrow: 1, overflowY: 'auto', marginBottom: 2 }}>
               <List>
                 {messages.map((message, index) => (
-                  <React.Fragment key={index}>
-                    <ListItem>
-                      <ListItemText primary={message.text} secondary={message.sender === userId ? 'You' : selectedUser.email} />
-                    </ListItem>
-                    <Divider />
-                  </React.Fragment>
+                  <ListItem key={index} sx={{ display: 'flex', justifyContent: message.sender === userId ? 'flex-end' : 'flex-start' }}>
+                    <Paper
+                      sx={{
+                        padding: 1,
+                        maxWidth: '70%',
+                        bgcolor: message.sender === userId ? 'primary.main' : 'grey.300',
+                        color: message.sender === userId ? 'primary.contrastText' : 'text.primary',
+                        borderRadius: '10px',
+                        wordWrap: 'break-word',
+                      }}
+                    >
+                      <Typography variant="body2">{message.text}</Typography>
+                      <Typography variant="caption" align="right" display="block" sx={{ mt: 0.5 }}>
+                        {formatDate(message.timestamp)}
+                      </Typography>
+                    </Paper>
+                  </ListItem>
                 ))}
               </List>
             </Box>
@@ -190,8 +219,18 @@ const Telemed = () => {
                 placeholder="Type your message..."
                 value={newMessage}
                 onChange={handleMessageChange}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: '20px',
+                  },
+                }}
               />
-              <Button variant="contained" color="primary" onClick={handleSendMessage} sx={{ ml: 2 }}>
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={handleSendMessage}
+                sx={{ ml: 2, borderRadius: '20px', minWidth: '100px' }}
+              >
                 Send
               </Button>
             </Box>

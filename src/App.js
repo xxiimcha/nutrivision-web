@@ -48,8 +48,8 @@ function AppRoutes() {
       <Route path="/dashboard/*" element={<DashboardLayout />}>
         <Route index element={<Dashboard />} />
 
-        {/* Profile Route */}
-        <Route path="profile" element={<Profile />} /> 
+        {/* Profile Route with userId parameter */}
+        <Route path="profile/:userId" element={<Profile />} /> 
 
         {(role === 'Admin' || role === 'Super Admin') && (
           <>
@@ -87,6 +87,7 @@ function AppRoutes() {
     </Routes>
   );
 }
+
 
 function App() {
   return (

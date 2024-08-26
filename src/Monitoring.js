@@ -1,100 +1,48 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, TextField,
   Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Grid, IconButton
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
-import moment from 'moment';
-
-const initialData = [
-  {
-    address: '123 Main St',
-    parentName: 'Mary Doe',
-    childName: 'John Doe',
-    indigenous: 'No',
-    dateOfBirth: '2018-06-15',
-    weight: 20,
-    height: 120,
-    goalWeight: 22,
-    weeklyImprovement: 0.1,
-    cumulativeImprovement: 0,
-    improvementLogs: [0.1],
-  },
-  {
-    address: '456 Oak St',
-    parentName: 'Robert Smith',
-    childName: 'Jane Smith',
-    indigenous: 'Yes',
-    dateOfBirth: '2017-08-21',
-    weight: 22,
-    height: 130,
-    goalWeight: 25,
-    weeklyImprovement: 0.2,
-    cumulativeImprovement: 0,
-    improvementLogs: [0.2],
-  },
-  {
-    address: '789 Pine St',
-    parentName: 'Susan Brown',
-    childName: 'Tom Brown',
-    indigenous: 'No',
-    dateOfBirth: '2019-04-10',
-    weight: 18,
-    height: 110,
-    goalWeight: 20,
-    weeklyImprovement: 0.15,
-    cumulativeImprovement: 0,
-    improvementLogs: [0.15],
-  },
-];
-
-const calculateAgeInMonths = (dateOfBirth) => {
-  const birthDate = moment(dateOfBirth);
-  const currentDate = moment();
-  return currentDate.diff(birthDate, 'months');
-};
-
-const getWeightForAgeStatus = (ageInMonths, weight) => {
-  const averageWeight = ageInMonths * 0.4; // Philippines standard: average weight gain of 0.4 kg per month
-  if (weight < 0.9 * averageWeight) {
-    return 'Underweight';
-  } else if (weight > 1.1 * averageWeight) {
-    return 'Overweight';
-  }
-  return 'Normal';
-};
-
-const getHeightForAgeStatus = (ageInMonths, height) => {
-  const averageHeight = ageInMonths * 0.6; // Philippines standard: average height gain of 0.6 cm per month
-  if (height < 0.9 * averageHeight) {
-    return 'Short';
-  } else if (height > 1.1 * averageHeight) {
-    return 'Tall';
-  }
-  return 'Normal';
-};
-
-const getWeightForHeightStatus = (weight, height) => {
-  const bmi = weight / ((height / 100) ** 2); // Convert height to meters
-  if (bmi < 16) {
-    return 'Underweight'; // Philippines standard: BMI below 16 is considered underweight for children
-  } else if (bmi > 18.5) {
-    return 'Overweight'; // Philippines standard: BMI above 18.5 is considered overweight for children
-  }
-  return 'Normal';
-};
-
-const calculatePercentageOfGoalAchieved = (initialWeight, cumulativeImprovement, goalWeight) => {
-  if (goalWeight <= initialWeight) return 100;
-  return (((initialWeight + cumulativeImprovement) / goalWeight) * 100).toFixed(2);
-};
+import axios from 'axios';
 
 const Monitoring = () => {
-  const [data, setData] = useState(initialData);
+  const [data, setData] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [openModal, setOpenModal] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(null);
   const [newImprovement, setNewImprovement] = useState('');
+
+  // Fetch data from the patient records table and their associated weekly improvements
+  useEffect(() => {
+    const fetchRecords = async () => {
+      try {
+        const response = await axios.get('http://localhost:5000/api/patient-records');
+        const updatedData = await Promise.all(response.data.map(async (record) => {
+          const goalWeight = record.ageInMonths * 0.4; // Compute goal weight based on age in months
+  
+          // Fetch weekly improvements for this record
+          const improvementsResponse = await axios.get(`http://localhost:5000/api/patient-records/${record._id}/improvements`);
+          const improvementLogs = improvementsResponse.data.map(improvement => ({
+            weekNumber: improvement.weekNumber,
+            improvement: improvement.improvement
+          }));
+
+          // Calculate the latest weight based on improvements
+          const latestWeight = improvementLogs.length > 0
+            ? record.weight + improvementLogs.reduce((acc, val) => acc + val.improvement, 0)
+            : record.weight; 
+
+          return { ...record, goalWeight, improvementLogs, latestWeight };
+        }));
+        setData(updatedData);
+      } catch (error) {
+        console.error('Error fetching patient records or weekly improvements:', error);
+      }
+    };
+  
+    fetchRecords();
+  }, []);
 
   const handleOpenModal = (index) => {
     setSelectedIndex(index);
@@ -106,23 +54,42 @@ const Monitoring = () => {
     setNewImprovement('');
   };
 
-  const handleAddImprovement = () => {
-    if (newImprovement) {
-      const updatedData = data.map((item, i) => {
-        if (i === selectedIndex) {
-          const newLogs = [...item.improvementLogs, parseFloat(newImprovement)];
-          const newCumulativeImprovement = newLogs.reduce((acc, val) => acc + val, 0);
-          return { ...item, improvementLogs: newLogs, cumulativeImprovement: newCumulativeImprovement };
-        }
-        return item;
-      });
-      setData(updatedData);
-      handleCloseModal();
+  const calculatePercentageOfGoalAchieved = (latestWeight, goalWeight) => {
+    if (goalWeight <= 0) return 0; // Avoid division by zero
+    return ((latestWeight / goalWeight) * 100).toFixed(2);
+  };
+
+  const handleAddImprovement = async () => {
+    if (newImprovement && selectedIndex !== null) {
+      const selectedRecord = data[selectedIndex];
+
+      try {
+        // Send the improvement to the backend
+        await axios.post(`http://localhost:5000/api/patient-records/${selectedRecord._id}/add-improvement`, {
+          currentWeight: parseFloat(newImprovement),
+        });
+
+        // Update the UI locally
+        const updatedData = data.map((item, i) => {
+          if (i === selectedIndex) {
+            const newLogs = [...item.improvementLogs, { weekNumber: item.improvementLogs.length + 1, weightGain: parseFloat(newImprovement) }];
+            const latestWeight = item.weight + newLogs.reduce((acc, val) => acc + val.weightGain, 0);
+            return { ...item, improvementLogs: newLogs, latestWeight };
+          }
+          return item;
+        });
+
+        setData(updatedData);
+        handleCloseModal();
+      } catch (error) {
+        console.error('Error adding improvement:', error);
+        alert('Failed to add improvement. Please try again.');
+      }
     }
   };
 
   const filteredData = data.filter(row =>
-    row.childName.toLowerCase().includes(searchTerm.toLowerCase())
+    row.patientName.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -145,7 +112,7 @@ const Monitoring = () => {
           />
         </Grid>
       </Grid>
-      
+
       <TableContainer component={Paper} style={{ marginTop: 20 }}>
         <Table aria-label="simple table">
           <TableHead>
@@ -157,28 +124,17 @@ const Monitoring = () => {
               <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>Goal Weight (kg)</TableCell>
               <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>Weekly Improvement (kg)</TableCell>
               <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>Percentage of Goal Achieved</TableCell>
-              <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>Status</TableCell>
+              <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>Nutritional Status</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {filteredData.map((row, index) => {
-              const ageInMonths = calculateAgeInMonths(row.dateOfBirth);
-              const weightForAgeStatus = getWeightForAgeStatus(ageInMonths, row.weight);
-              const heightForAgeStatus = getHeightForAgeStatus(ageInMonths, row.height);
-              const weightForHeightStatus = getWeightForHeightStatus(row.weight, row.height);
-              const percentageOfGoalAchieved = calculatePercentageOfGoalAchieved(row.weight, row.cumulativeImprovement, row.goalWeight);
-              let status = 'Normal';
-              if (
-                weightForAgeStatus === 'Underweight' ||
-                heightForAgeStatus === 'Short' ||
-                weightForHeightStatus === 'Underweight'
-              ) {
-                status = 'Undernourished';
-              }
+              const percentageOfGoalAchieved = calculatePercentageOfGoalAchieved(row.latestWeight, row.goalWeight);
+
               return (
                 <TableRow key={index}>
-                  <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>{row.childName}</TableCell>
-                  <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>{ageInMonths}</TableCell>
+                  <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>{row.patientName}</TableCell>
+                  <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>{row.ageInMonths}</TableCell>
                   <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>{row.weight}</TableCell>
                   <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>{row.height}</TableCell>
                   <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>{row.goalWeight}</TableCell>
@@ -191,7 +147,7 @@ const Monitoring = () => {
                     </Button>
                   </TableCell>
                   <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>{percentageOfGoalAchieved}%</TableCell>
-                  <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>{status}</TableCell>
+                  <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>{row.nutritionStatus}</TableCell>
                 </TableRow>
               );
             })}
@@ -204,31 +160,33 @@ const Monitoring = () => {
         <DialogTitle>Weekly Improvement Logs</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Improvement logs for {selectedIndex !== null && data[selectedIndex].childName}
+            Improvement logs for {selectedIndex !== null && data[selectedIndex]?.patientName}
           </DialogContentText>
-          <TableContainer component={Paper} style={{ marginTop: 20 }}>
-            <Table aria-label="simple table">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Week</TableCell>
-                  <TableCell>Improvement (kg)</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {selectedIndex !== null && data[selectedIndex].improvementLogs.map((log, i) => (
-                  <TableRow key={i}>
-                    <TableCell>Week {i + 1}</TableCell>
-                    <TableCell>{log}</TableCell>
+          {selectedIndex !== null && data[selectedIndex]?.improvementLogs && (
+            <TableContainer component={Paper} style={{ marginTop: 20 }}>
+              <Table aria-label="simple table">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Week</TableCell>
+                    <TableCell>Weight Gain (kg)</TableCell>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+                </TableHead>
+                <TableBody>
+                  {data[selectedIndex].improvementLogs.map((log, i) => (
+                    <TableRow key={i}>
+                      <TableCell>{log.weekNumber}</TableCell>
+                      <TableCell>{log.improvement}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
           <Grid container spacing={2} style={{ marginTop: 20 }}>
             <Grid item xs={12}>
               <TextField
                 fullWidth
-                label="Add New Improvement (kg)"
+                label="Add New Weight (kg)"
                 type="number"
                 value={newImprovement}
                 onChange={(e) => setNewImprovement(e.target.value)}

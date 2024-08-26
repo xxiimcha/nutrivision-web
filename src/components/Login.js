@@ -15,17 +15,16 @@ import { UserContext } from '../context/UserContext';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
-import DialogContentText from '@mui/material/DialogContentText';
 import DialogTitle from '@mui/material/DialogTitle';
 
-import logo from '../images/logo.png'; // Import your logo image
+import logo from '../images/logo.png';
 
 const defaultTheme = createTheme();
 
 export default function SignInSide() {
-  const { setRole, setUserId } = useContext(UserContext);  // Use setUserId from context
+  const { setRole, setUserId, setName, setEmail } = useContext(UserContext);
   const [step, setStep] = useState('login');
-  const [email, setEmail] = useState('');
+  const [loginEmail, setLoginEmail] = useState('');
   const [otp, setOtp] = useState('');
   const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
   const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false);
@@ -40,18 +39,23 @@ export default function SignInSide() {
     try {
       const response = await axios.post('http://localhost:5000/api/login', { email, password });
       if (response.status === 200) {
-        setEmail(email);
+        setLoginEmail(email);
         if (response.data.otpRequired) {
           setStep('otp');
         } else {
-          const { role, _id } = response.data;  // Assume the backend returns the user's role and ID
+          const { role, _id, name, email } = response.data;
           console.log('User Role:', role);
-          console.log(response.data);
+          console.log('User Name:', name);
+          console.log('User Email:', email);
           console.log('User ID:', _id);
           setRole(role);
           setUserId(_id);
+          setName(name);
+          setEmail(email);
           localStorage.setItem('userRole', role);
           localStorage.setItem('userId', _id);
+          localStorage.setItem('userName', name);
+          localStorage.setItem('userEmail', email);
           navigate(`/dashboard/${role.toLowerCase()}`);
         }
       }
@@ -64,15 +68,21 @@ export default function SignInSide() {
   const handleOtpSubmit = async (event) => {
     event.preventDefault();
     try {
-      const response = await axios.post('http://localhost:5000/api/login/verify-otp', { email, otp });
+      const response = await axios.post('http://localhost:5000/api/login/verify-otp', { email: loginEmail, otp });
       if (response.status === 200) {
-        const { role, _id } = response.data;  // Assume the backend returns the user's role and ID
+        const { role, _id, name, email } = response.data;
         console.log('User Role:', role);
+        console.log('User Name:', name);
+        console.log('User Email:', email);
         console.log('User ID:', _id);
         setRole(role);
         setUserId(_id);
+        setName(name);
+        setEmail(email);
         localStorage.setItem('userRole', role);
         localStorage.setItem('userId', _id);
+        localStorage.setItem('userName', name);
+        localStorage.setItem('userEmail', email);
         navigate(`/dashboard/${role.toLowerCase()}`);
       } else {
         alert('Invalid OTP');
@@ -227,9 +237,6 @@ export default function SignInSide() {
       <Dialog open={forgotPasswordOpen} onClose={() => setForgotPasswordOpen(false)}>
         <DialogTitle>Forgot Password</DialogTitle>
         <DialogContent>
-          <DialogContentText>
-            Please enter your email address. We will send you a link to reset your password.
-          </DialogContentText>
           <TextField
             autoFocus
             margin="dense"

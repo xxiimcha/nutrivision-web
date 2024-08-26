@@ -48,10 +48,6 @@ const PatientDetails = () => {
         <Table>
           <TableBody>
             <TableRow>
-              <TableCell><strong>Reference Number:</strong></TableCell>
-              <TableCell>{record.referenceNumber}</TableCell>
-            </TableRow>
-            <TableRow>
               <TableCell><strong>Address:</strong></TableCell>
               <TableCell>{record.address}</TableCell>
             </TableRow>

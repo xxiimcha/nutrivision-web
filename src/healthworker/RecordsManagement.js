@@ -15,7 +15,6 @@ import {
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import PrintIcon from '@mui/icons-material/Print';
-import AddIcon from '@mui/icons-material/Add';
 import axios from 'axios';
 
 const RecordsManagement = () => {
@@ -44,10 +43,6 @@ const RecordsManagement = () => {
     record.patientName.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleAddRecord = () => {
-    navigate('/dashboard/add-record');
-  };
-
   const handleViewDetails = (recordId) => {
     navigate(`/dashboard/patient-details/${recordId}`);
   };
@@ -72,15 +67,6 @@ const RecordsManagement = () => {
         />
         <Button variant="contained" color="success" startIcon={<PrintIcon />}>
           PRINT
-        </Button>
-        <Button
-          variant="contained"
-          color="primary"
-          startIcon={<AddIcon />}
-          onClick={handleAddRecord}
-          sx={{ marginLeft: 2 }}
-        >
-          ADD RECORD
         </Button>
       </Box>
       <TableContainer component={Paper}>

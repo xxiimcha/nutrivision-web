@@ -1,5 +1,5 @@
 import React, { useContext, useState } from 'react';
-import { Outlet, Link } from 'react-router-dom';
+import { Outlet, Link, useNavigate } from 'react-router-dom'; // import useNavigate
 import AppBar from '@mui/material/AppBar';
 import Box from '@mui/material/Box';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -13,11 +13,9 @@ import ListItemText from '@mui/material/ListItemText';
 import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
 import DashboardIcon from '@mui/icons-material/Dashboard';
-import EventIcon from '@mui/icons-material/Event';
 import PeopleIcon from '@mui/icons-material/People';
 import PlansIcon from '@mui/icons-material/ListAlt';
 import HomeIcon from '@mui/icons-material/Home';
-import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import Button from '@mui/material/Button';
 import Badge from '@mui/material/Badge';
 import MailIcon from '@mui/icons-material/Mail';
@@ -51,7 +49,8 @@ const CustomListItem = styled(ListItem)(({ theme }) => ({
 
 function DashboardLayout(props) {
   const { window } = props;
-  const { role, user } = useContext(UserContext);
+  const { role, name, email, userId } = useContext(UserContext); // Assume userId is provided in context
+  const navigate = useNavigate();
 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openAccounts, setOpenAccounts] = useState(false);
@@ -63,6 +62,7 @@ function DashboardLayout(props) {
 
   const handleLogout = () => {
     console.log('Logout clicked');
+    // Add logout logic here
   };
 
   const toggleAccountsDropdown = () => {
@@ -78,23 +78,12 @@ function DashboardLayout(props) {
       <Toolbar />
       <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: 2, marginTop: '-70px' }}>
         {/* Profile section with clickable Link */}
-        <Link 
-          to="/profile" 
-          style={{ 
-            textDecoration: 'none', 
-            color: 'inherit', 
-            textAlign: 'center', 
-            '&:hover': { 
-              color: '#3f51b5', 
-              textDecoration: 'underline' 
-            }
-          }}
-        >
+        <Link to={`/dashboard/profile/${userId}`} style={{ textDecoration: 'none', color: 'inherit', textAlign: 'center' }}>
           <Typography variant="h6" noWrap component="div" sx={{ fontSize: '20px', fontWeight: 'bold' }}>
-            {user?.name || 'User Name'}
+            {name || 'User Name'} {/* Display user's name */}
           </Typography>
           <Typography variant="subtitle1" noWrap component="div" sx={{ fontSize: '16px', color: 'grey' }}>
-            {user?.email || 'user@example.com'}
+            {email || 'user@example.com'} {/* Display user's email */}
           </Typography>
         </Link>
       </Box>
@@ -102,7 +91,7 @@ function DashboardLayout(props) {
       <List>
         {/* Dashboard - Only for Admin or Super Admin */}
         {(role === 'Admin' || role === 'Super Admin') && (
-          <CustomListItem button component={Link} to=".">
+          <CustomListItem button component={Link} to="/dashboard">
             <ListItemIcon><DashboardIcon /></ListItemIcon>
             <ListItemText primary="Dashboard" />
           </CustomListItem>
@@ -118,10 +107,10 @@ function DashboardLayout(props) {
         )}
         <Collapse in={openAccounts} timeout="auto" unmountOnExit>
           <List component="div" disablePadding>
-            <CustomListItem sx={{ pl: 4 }} button component={Link} to="residence">
+            <CustomListItem sx={{ pl: 4 }} button component={Link} to="/dashboard/residence">
               <ListItemText primary="Residence" />
             </CustomListItem>
-            <CustomListItem sx={{ pl: 4 }} button component={Link} to="admin">
+            <CustomListItem sx={{ pl: 4 }} button component={Link} to="/dashboard/admin">
               <ListItemText primary="Admin" />
             </CustomListItem>
           </List>
@@ -137,11 +126,11 @@ function DashboardLayout(props) {
         )}
         <Collapse in={openStatus} timeout="auto" unmountOnExit>
           <List component="div" disablePadding>
-            <CustomListItem sx={{ pl: 4 }} button component={Link} to="records-management">
+            <CustomListItem sx={{ pl: 4 }} button component={Link} to="/dashboard/records-management">
               <ListItemIcon><AssignmentIcon /></ListItemIcon> {/* Records Icon */}
               <ListItemText primary="Records" />
             </CustomListItem>
-            <CustomListItem sx={{ pl: 4 }} button component={Link} to="monitoring">
+            <CustomListItem sx={{ pl: 4 }} button component={Link} to="/dashboard/monitoring">
               <ListItemIcon><AssessmentIcon /></ListItemIcon> {/* Monitoring Icon */}
               <ListItemText primary="Monitoring" />
             </CustomListItem>
@@ -151,25 +140,14 @@ function DashboardLayout(props) {
         {/* Conditionally render other sidebar items based on the user's role */}
         {(role === 'Nutritionist' || role === 'Health Worker') && (
           <>
-            <CustomListItem button component={Link} to="food-management">
+            <CustomListItem button component={Link} to="/dashboard/food-management">
               <ListItemIcon><PlansIcon /></ListItemIcon>
               <ListItemText primary="Meal Plans" />
             </CustomListItem>
           </>
         )}
 
-        {role === 'Health Worker' && (
-          <>
-            <CustomListItem button component={Link} to="calendar">
-              <ListItemIcon><EventIcon /></ListItemIcon>
-              <ListItemText primary="Calendar" />
-            </CustomListItem>
-            <CustomListItem button component={Link} to="telemedicine">
-              <ListItemIcon><HomeIcon /></ListItemIcon>
-              <ListItemText primary="Telemedicine" />
-            </CustomListItem>
-          </>
-        )}
+        {/* Remove Telemedicine from Sidebar */}
       </List>
     </div>
   );
@@ -204,7 +182,7 @@ function DashboardLayout(props) {
               Nutrivision
             </Typography>
           </Box>
-          <IconButton color="inherit" component={Link} to="">
+          <IconButton color="inherit" component={Link} to="/dashboard/telemedicine">  {/* Link MailIcon to Telemedicine */}
             <Badge color="error">
               <MailIcon />
             </Badge>
@@ -214,7 +192,7 @@ function DashboardLayout(props) {
               <NotificationsIcon />
             </Badge>
           </IconButton>
-          <IconButton color="inherit" component={Link} to="/settings">
+          <IconButton color="inherit" component={Link} to={`/dashboard/profile/${userId}`}>  {/* Updated to link SettingsIcon to Profile with userId */}
             <SettingsIcon />
           </IconButton>
           <Button color="inherit" component={Link} to="/" onClick={handleLogout}>
