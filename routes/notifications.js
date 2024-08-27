@@ -33,13 +33,14 @@ router.put('/:notificationId/read', async (req, res) => {
 
 // Create a new notification
 router.post('/', async (req, res) => {
-  try {
-    const newNotification = new Notification(req.body);
-    const savedNotification = await newNotification.save();
-    res.status(201).json(savedNotification);
-  } catch (error) {
-    res.status(500).json({ error: 'Server error' });
-  }
-});
+    try {
+      const newNotification = new Notification(req.body);
+      const savedNotification = await newNotification.save();
+      res.status(201).json(savedNotification);
+    } catch (error) {
+      console.error('Error creating notification:', error); // Log the error
+      res.status(500).json({ error: 'Server error' });
+    }
+  });  
 
 module.exports = router;

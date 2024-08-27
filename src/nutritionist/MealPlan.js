@@ -28,6 +28,7 @@ const MealPlan = () => {
   const [selectedDay, setSelectedDay] = useState('');
   const [selectedMealType, setSelectedMealType] = useState('');
   const [mealDetails, setMealDetails] = useState({ mainDish: '', drinks: '', vitamins: '' });
+  const [proofFile, setProofFile] = useState(null); // State to store proof file
   const navigate = useNavigate();
 
   // Calculate start and end dates of the week
@@ -130,12 +131,13 @@ const MealPlan = () => {
       const patientResponse = await axios.get(`http://localhost:5000/api/patient-records/${id}`);
       const userId = patientResponse.data.userId; // Assuming the userId is stored under 'userId' in the patient record
   
-      // Create a notification
+      // Create a notification with required fields
       const notification = {
-        user_id: userId,
+        userId: userId,
+        title: `Meal Plan for ${patientInfo.name}`,
+        message: `The meal plan for ${day}, week of ${week}, has been sent.`,
         reserved_time: new Date().toISOString(), // Assuming you want to store the current time
         post_id: null, // If you have a specific post ID, replace 'null' with the appropriate value
-        details: `Meal plan for ${day}, week of ${week}, has been sent.`, // Customize the notification message as needed
         updated_at: new Date().toISOString(), // The time the notification is created or updated
       };
   
@@ -147,14 +149,47 @@ const MealPlan = () => {
     } catch (error) {
       console.error('Error sending meal plan or creating notification:', error);
     }
-  };
+  };  
 
+  const handleProofUpload = async (day, mealType) => {
+    if (!proofFile) return;
+    const formData = new FormData();
+    formData.append('proof', proofFile);
+
+    try {
+      const response = await axios.post(`http://localhost:5000/api/meal-plans/${id}/${week}/upload-proof`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      const updatedMealPlan = { ...mealPlan };
+      updatedMealPlan[day][mealType].proofStatus = 'done'; // Mark proof as uploaded
+      setMealPlan(updatedMealPlan);
+      setProofFile(null); // Clear file input after successful upload
+    } catch (error) {
+      console.error('Error uploading proof of meal:', error);
+    }
+  };
 
   const allMealsApproved = (day) => {
     return ['breakfast', 'lunch', 'dinner'].every(
       (mealType) => mealPlan[day]?.[mealType]?.approved
     );
   };
+
+  const handleRecommendedChange = async (day) => {
+    const updatedMealPlan = { ...mealPlan };
+    const recommended = !updatedMealPlan[day].recommended;
+    updatedMealPlan[day].recommended = recommended;
+  
+    try {
+      await axios.patch(`http://localhost:5000/api/meal-plans/${id}/${week}/recommend/${day}`, { recommended });
+      setMealPlan(updatedMealPlan);
+    } catch (error) {
+      console.error('Error updating recommended status:', error);
+    }
+  };  
 
   return (
     <Container>
@@ -163,7 +198,7 @@ const MealPlan = () => {
       </Typography>
       <Box mb={2}>
         <Typography variant="h6">
-          Child's Name: {patientInfo.patientName}
+          Child's Name: {patientInfo.name}
         </Typography>
         <Typography variant="subtitle1">
           Height: {patientInfo.height}, Weight: {patientInfo.weight}
@@ -202,9 +237,17 @@ const MealPlan = () => {
                     <div>Drinks: {mealPlan[day]?.[mealType]?.drinks || 'No meal planned'}</div>
                     <div>Vitamins: {mealPlan[day]?.[mealType]?.vitamins || 'No meal planned'}</div>
                     {mealPlan[day]?.[mealType]?.approved ? (
-                      <Button variant="contained" color="success" sx={{ mt: 1 }} disabled>
-                        Approved
-                      </Button>
+                      <div>
+                        <Button variant="contained" color="primary" sx={{ mt: 1 }}>
+                          View Proof of Meal
+                        </Button>
+                        <div style={{ marginTop: '8px' }}>
+                          <Badge
+                            color={mealPlan[day]?.[mealType]?.proofStatus === 'done' ? 'success' : 'warning'}
+                            badgeContent={mealPlan[day]?.[mealType]?.proofStatus === 'done' ? 'Done' : 'In Progress'}
+                          />
+                        </div>
+                      </div>
                     ) : (
                       <>
                         <Button
@@ -225,13 +268,14 @@ const MealPlan = () => {
                         </Button>
                       </>
                     )}
-                  </TableCell>
+                  </TableCell>                
                 ))}
                 <TableCell>
                   <Switch
                     checked={mealPlan[day]?.recommended || false}
                     color="primary"
                     inputProps={{ 'aria-label': 'recommended-switch' }}
+                    onChange={() => handleRecommendedChange(day)}
                   />
                   {allMealsApproved(day) && mealPlan[day].status !== 'sent' && (
                     <Button variant="contained" color="success" sx={{ mt: 1 }} onClick={() => handleSendMealPlan(day)}>
@@ -290,9 +334,23 @@ const MealPlan = () => {
             fullWidth
             sx={{ mb: 2 }}
           />
+          <TextField
+            type="file"
+            onChange={(e) => setProofFile(e.target.files[0])}
+            fullWidth
+            sx={{ mb: 2 }}
+          />
           <Box display="flex" justifyContent="space-between" mt={2}>
             <Button variant="contained" color="primary" onClick={handleSaveMeal}>
               Save
+            </Button>
+            <Button
+              variant="contained"
+              color="secondary"
+              onClick={() => handleProofUpload(selectedDay, selectedMealType)}
+              disabled={!proofFile}
+            >
+              Upload Proof
             </Button>
             <Button variant="contained" color="secondary" onClick={handleCloseModal}>
               Cancel

@@ -48,7 +48,7 @@ function RecordsManagement() {
   };
 
   const filteredRecords = records.filter((record) =>
-    record.patientName.toLowerCase().includes(searchTerm.toLowerCase())
+    record.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // Helper function to format dates to YYYY-MM-DD
@@ -159,8 +159,8 @@ function RecordsManagement() {
               .map((record, index) => (
                 <TableRow key={index}>
                   <TableCell>{record.address}</TableCell>
-                  <TableCell>{record.parentName}</TableCell>
-                  <TableCell>{record.patientName}</TableCell>
+                  <TableCell>{record.guardian}</TableCell>
+                  <TableCell>{record.name}</TableCell>
                   <TableCell>{formatDate(record.dob)}</TableCell>
                   <TableCell>{record.gender}</TableCell>
                   <TableCell>{record.height} CM</TableCell>

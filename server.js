@@ -12,7 +12,7 @@ app.use(bodyParser.json());
 app.use(cors());
 
 // MongoDB connection
-mongoose.connect('mongodb://localhost:27017/nutrivision', {
+mongoose.connect('mongodb+srv://nutrivision:nutrivision123@nutrivision.04lzv.mongodb.net/nutrivision?retryWrites=true&w=majority&appName=nutrivision', {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 }).then(() => {
@@ -21,6 +21,7 @@ mongoose.connect('mongodb://localhost:27017/nutrivision', {
   console.error('MongoDB connection error:', err);
 });
 
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // Routes
 const adminRoutes = require('./routes/admin');
 const loginRoutes = require('./routes/login');

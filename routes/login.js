@@ -1,6 +1,8 @@
 const express = require('express');
 const Admin = require('../models/Admin');
 const sendOtpToEmail = require('../utils/sendOtpToEmail');
+const crypto = require('crypto');
+const sendPasswordResetEmail = require('../utils/sendPasswordResetEmail'); // A utility function to send emails
 
 const router = express.Router();
 
@@ -93,6 +95,63 @@ router.post('/verify-otp', async (req, res) => {
   } catch (error) {
     console.error('Error during OTP verification:', error);
     return res.status(500).send({ message: 'Internal server error' });
+  }
+});
+// Forgot password route
+router.post('/forgot-password', async (req, res) => {
+  const { email } = req.body;
+
+  try {
+    // Find the admin by email
+    const admin = await Admin.findOne({ email });
+    if (!admin) {
+      return res.status(404).send({ message: 'Admin not found' });
+    }
+
+    // Generate a unique token for the password reset
+    const resetToken = crypto.randomBytes(20).toString('hex');
+
+    // Save the reset token and its expiration date to the admin document
+    admin.resetToken = resetToken;
+    admin.resetTokenExpires = Date.now() + 3600000; // Token valid for 1 hour
+    await admin.save();
+
+    // Create the reset link
+    const resetLink = `http://localhost:3000/reset-password?token=${resetToken}`;
+
+    // Send the reset link to the admin's email
+    await sendPasswordResetEmail(admin.email, resetLink);
+
+    console.log(`Password reset link generated and sent to ${admin.email}: ${resetLink}`);
+    return res.status(200).send({ message: 'Password reset link sent to your email' });
+  } catch (error) {
+    console.error('Error during password reset:', error);
+    return res.status(500).send({ message: 'Internal server error' });
+  }
+});
+
+// Reset password route
+router.post('/reset-password', async (req, res) => {
+  const { token, newPassword } = req.body;
+
+  try {
+    // Find the admin by the reset token
+    const admin = await Admin.findOne({ resetToken: token, resetTokenExpires: { $gt: Date.now() } });
+
+    if (!admin) {
+      return res.status(400).send({ message: 'Invalid or expired token' });
+    }
+
+    // Update the password
+    admin.password = newPassword;
+    admin.resetToken = undefined;
+    admin.resetTokenExpires = undefined;
+    await admin.save();
+
+    res.status(200).send({ message: 'Password reset successfully' });
+  } catch (error) {
+    console.error('Error resetting password:', error);
+    res.status(500).send({ message: 'Internal server error' });
   }
 });
 

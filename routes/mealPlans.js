@@ -93,7 +93,6 @@ router.get('/:id/:week', async (req, res) => {
 });
 
 // Create or update meal plan
-// Create or update meal plan
 router.post('/:id/:week', async (req, res) => {
   try {
     const { id, week } = req.params;
@@ -138,5 +137,36 @@ router.post('/:id/:week', async (req, res) => {
   }
 });
 
+// Update recommended status
+router.patch('/:id/:week/recommend/:day', async (req, res) => {
+  try {
+    const { id, week, day } = req.params;
+    const { recommended } = req.body;
+
+    console.log(`Updating recommended status for patient ${id}, week ${week}, day ${day} to ${recommended}`);
+
+    let mealPlan = await MealPlan.findOne({ patientId: id, week });
+
+    if (!mealPlan) {
+      console.error(`Meal plan not found for patient ${id} and week ${week}`);
+      return res.status(404).json({ error: 'Meal plan not found' });
+    }
+
+    if (!mealPlan[day]) {
+      console.error(`Invalid day ${day} in meal plan`);
+      return res.status(400).json({ error: 'Invalid day' });
+    }
+
+    mealPlan[day].recommended = recommended;
+
+    await mealPlan.save();
+
+    console.log(`Successfully updated recommended status for ${day}`);
+    res.json(mealPlan);
+  } catch (error) {
+    console.error('Error updating recommended status:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
 
 module.exports = router;

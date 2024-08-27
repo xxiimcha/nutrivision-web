@@ -31,6 +31,10 @@ const AdminSchema = new Schema({
     type: Date,
     required: false // Expiration time for the OTP
   },
+  profilePicture: {
+    type: String,
+    required: false // Path to the profile picture, not required as default
+  },
   createdAt: {
     type: Date,
     default: Date.now
