@@ -3,8 +3,8 @@ const mongoose = require('mongoose');
 const patientRecordSchema = new mongoose.Schema({
   referenceNumber: { type: String, unique: true },
   address: String,
-  parentName: String,
-  patientName: String,
+  guardian: String,
+  name: String,
   dob: Date,
   gender: String,
   height: String,

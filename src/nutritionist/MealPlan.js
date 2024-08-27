@@ -14,6 +14,7 @@ import {
   Switch,
   Modal,
   TextField,
+  Badge,
 } from '@mui/material';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -85,6 +86,7 @@ const MealPlan = () => {
         lunch: {},
         dinner: {},
         recommended: false,
+        status: '', // Initialize status if not set
       };
     }
 
@@ -114,6 +116,39 @@ const MealPlan = () => {
       console.error('Error approving meal:', error);
     }
   };
+
+  const handleSendMealPlan = async (day) => {
+    try {
+      const updatedMealPlan = { ...mealPlan };
+      updatedMealPlan[day].status = 'sent'; // Set status for the specific day
+  
+      // Send the updated meal plan
+      await axios.post(`http://localhost:5000/api/meal-plans/${id}/${week}`, updatedMealPlan);
+      setMealPlan(updatedMealPlan);
+  
+      // Fetch the patient record to get the userId for notifications
+      const patientResponse = await axios.get(`http://localhost:5000/api/patient-records/${id}`);
+      const userId = patientResponse.data.userId; // Assuming the userId is stored under 'userId' in the patient record
+  
+      // Create a notification
+      const notification = {
+        user_id: userId,
+        reserved_time: new Date().toISOString(), // Assuming you want to store the current time
+        post_id: null, // If you have a specific post ID, replace 'null' with the appropriate value
+        details: `Meal plan for ${day}, week of ${week}, has been sent.`, // Customize the notification message as needed
+        updated_at: new Date().toISOString(), // The time the notification is created or updated
+      };
+  
+      // Send the notification to the backend
+      await axios.post(`http://localhost:5000/api/notifications`, notification);
+  
+      // Optionally, show a success message to the user
+      console.log('Meal plan sent and notification created successfully.');
+    } catch (error) {
+      console.error('Error sending meal plan or creating notification:', error);
+    }
+  };
+
 
   const allMealsApproved = (day) => {
     return ['breakfast', 'lunch', 'dinner'].every(
@@ -154,6 +189,7 @@ const MealPlan = () => {
               <TableCell>Lunch</TableCell>
               <TableCell>Dinner</TableCell>
               <TableCell>Actions</TableCell>
+              <TableCell>Status</TableCell> {/* New column for status */}
             </TableRow>
           </TableHead>
           <TableBody>
@@ -197,11 +233,17 @@ const MealPlan = () => {
                     color="primary"
                     inputProps={{ 'aria-label': 'recommended-switch' }}
                   />
-                  {allMealsApproved(day) && (
-                    <Button variant="contained" color="success" sx={{ mt: 1 }}>
+                  {allMealsApproved(day) && mealPlan[day].status !== 'sent' && (
+                    <Button variant="contained" color="success" sx={{ mt: 1 }} onClick={() => handleSendMealPlan(day)}>
                       SEND MEAL PLAN
                     </Button>
                   )}
+                </TableCell>
+                <TableCell>
+                  <Badge
+                    color={mealPlan[day]?.status === 'sent' ? 'primary' : 'secondary'}
+                    badgeContent={mealPlan[day]?.status === 'sent' ? 'Sent' : 'Not Sent'}
+                  />
                 </TableCell>
               </TableRow>
             ))}

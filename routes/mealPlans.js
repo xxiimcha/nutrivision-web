@@ -93,6 +93,7 @@ router.get('/:id/:week', async (req, res) => {
 });
 
 // Create or update meal plan
+// Create or update meal plan
 router.post('/:id/:week', async (req, res) => {
   try {
     const { id, week } = req.params;
@@ -102,7 +103,15 @@ router.post('/:id/:week', async (req, res) => {
     if (mealPlan) {
       // Ensure we do not overwrite approved meals
       Object.keys(mealPlanData).forEach((day) => {
+        if (!mealPlan[day]) {
+          mealPlan[day] = {};
+        }
+
         ['breakfast', 'lunch', 'dinner'].forEach((mealType) => {
+          if (!mealPlan[day][mealType]) {
+            mealPlan[day][mealType] = {};
+          }
+
           if (mealPlan[day][mealType]?.approved) {
             // If the meal is approved, do not overwrite it
             mealPlanData[day][mealType] = mealPlan[day][mealType];
@@ -128,5 +137,6 @@ router.post('/:id/:week', async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 });
+
 
 module.exports = router;

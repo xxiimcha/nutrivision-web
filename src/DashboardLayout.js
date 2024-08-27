@@ -1,5 +1,5 @@
-import React, { useContext, useState } from 'react';
-import { Outlet, Link, useNavigate } from 'react-router-dom'; // import useNavigate
+import React, { useContext, useState, useEffect } from 'react';
+import { Outlet, Link, useNavigate } from 'react-router-dom';
 import AppBar from '@mui/material/AppBar';
 import Box from '@mui/material/Box';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -25,11 +25,15 @@ import MenuIcon from '@mui/icons-material/Menu';
 import ExpandLess from '@mui/icons-material/ExpandLess';
 import ExpandMore from '@mui/icons-material/ExpandMore';
 import Collapse from '@mui/material/Collapse';
-import AssignmentIcon from '@mui/icons-material/Assignment'; // For Records
-import AssessmentIcon from '@mui/icons-material/Assessment'; // For Monitoring
+import AssignmentIcon from '@mui/icons-material/Assignment';
+import AssessmentIcon from '@mui/icons-material/Assessment';
+import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
+import Menu from '@mui/material/Menu';
+import MenuItem from '@mui/material/MenuItem';
 import { styled } from '@mui/material/styles';
 import { UserContext } from './context/UserContext';
-import logo from './images/logo.png'; // Move logo to AppBar
+import logo from './images/logo.png';
+import axios from 'axios';
 
 const drawerWidth = 240;
 
@@ -49,12 +53,29 @@ const CustomListItem = styled(ListItem)(({ theme }) => ({
 
 function DashboardLayout(props) {
   const { window } = props;
-  const { role, name, email, userId } = useContext(UserContext); // Assume userId is provided in context
+  const { role, name, email, userId } = useContext(UserContext);
   const navigate = useNavigate();
 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openAccounts, setOpenAccounts] = useState(false);
   const [openStatus, setOpenStatus] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [anchorEl, setAnchorEl] = useState(null);
+
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const response = await axios.get(`http://localhost:5000/api/notifications/${userId}`);
+        setNotifications(response.data);
+        setUnreadCount(response.data.filter(notification => !notification.read).length);
+      } catch (error) {
+        console.error('Error fetching notifications:', error);
+      }
+    };
+
+    fetchNotifications();
+  }, [userId]);
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -73,23 +94,46 @@ function DashboardLayout(props) {
     setOpenStatus(!openStatus);
   };
 
+  const handleNotificationClick = (event) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleMarkAsRead = async (id) => {
+    try {
+      await axios.put(`http://localhost:5000/api/notifications/${id}/read`);
+      setNotifications((prevNotifications) =>
+        prevNotifications.map((notification) =>
+          notification._id === id ? { ...notification, read: true } : notification
+        )
+      );
+      setUnreadCount((prevCount) => prevCount - 1);
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
+  };
+
   const drawer = (
     <div>
       <Toolbar />
       <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: 2, marginTop: '-70px' }}>
-        {/* Profile section with clickable Link */}
         <Link to={`/dashboard/profile/${userId}`} style={{ textDecoration: 'none', color: 'inherit', textAlign: 'center' }}>
           <Typography variant="h6" noWrap component="div" sx={{ fontSize: '20px', fontWeight: 'bold' }}>
-            {name || 'User Name'} {/* Display user's name */}
+            {name || 'User Name'}
           </Typography>
           <Typography variant="subtitle1" noWrap component="div" sx={{ fontSize: '16px', color: 'grey' }}>
-            {email || 'user@example.com'} {/* Display user's email */}
+            {email || 'user@example.com'}
+          </Typography>
+          <Typography variant="subtitle2" noWrap component="div" sx={{ fontSize: '14px', color: 'gray', fontStyle: 'italic' }}>
+            {role || 'Role'}
           </Typography>
         </Link>
       </Box>
       <Divider />
       <List>
-        {/* Dashboard - Only for Admin or Super Admin */}
         {(role === 'Admin' || role === 'Super Admin') && (
           <CustomListItem button component={Link} to="/dashboard">
             <ListItemIcon><DashboardIcon /></ListItemIcon>
@@ -97,7 +141,6 @@ function DashboardLayout(props) {
           </CustomListItem>
         )}
 
-        {/* Accounts Dropdown - Only for Admin or Super Admin */}
         {(role === 'Admin' || role === 'Super Admin') && (
           <CustomListItem button onClick={toggleAccountsDropdown}>
             <ListItemIcon><PeopleIcon /></ListItemIcon>
@@ -116,7 +159,6 @@ function DashboardLayout(props) {
           </List>
         </Collapse>
 
-        {/* Status Dropdown - Only for Nutritionists and Health Workers */}
         {(role === 'Nutritionist' || role === 'Health Worker') && (
           <CustomListItem button onClick={toggleStatusDropdown}>
             <ListItemIcon><HomeIcon /></ListItemIcon>
@@ -127,17 +169,23 @@ function DashboardLayout(props) {
         <Collapse in={openStatus} timeout="auto" unmountOnExit>
           <List component="div" disablePadding>
             <CustomListItem sx={{ pl: 4 }} button component={Link} to="/dashboard/records-management">
-              <ListItemIcon><AssignmentIcon /></ListItemIcon> {/* Records Icon */}
+              <ListItemIcon><AssignmentIcon /></ListItemIcon> 
               <ListItemText primary="Records" />
             </CustomListItem>
             <CustomListItem sx={{ pl: 4 }} button component={Link} to="/dashboard/monitoring">
-              <ListItemIcon><AssessmentIcon /></ListItemIcon> {/* Monitoring Icon */}
+              <ListItemIcon><AssessmentIcon /></ListItemIcon> 
               <ListItemText primary="Monitoring" />
             </CustomListItem>
           </List>
         </Collapse>
 
-        {/* Conditionally render other sidebar items based on the user's role */}
+        {role === 'Health Worker' && (
+          <CustomListItem button component={Link} to="/dashboard/calendar">
+            <ListItemIcon><CalendarTodayIcon /></ListItemIcon>
+            <ListItemText primary="Calendar" />
+          </CustomListItem>
+        )}
+
         {(role === 'Nutritionist' || role === 'Health Worker') && (
           <>
             <CustomListItem button component={Link} to="/dashboard/food-management">
@@ -146,8 +194,6 @@ function DashboardLayout(props) {
             </CustomListItem>
           </>
         )}
-
-        {/* Remove Telemedicine from Sidebar */}
       </List>
     </div>
   );
@@ -176,23 +222,50 @@ function DashboardLayout(props) {
             <MenuIcon />
           </IconButton>
           <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center' }}>
-            {/* Move Logo to AppBar */}
             <img src={logo} alt="Logo" style={{ width: '50px', height: '50px', marginRight: '10px' }} />
             <Typography variant="h6" noWrap component="div">
               Nutrivision
             </Typography>
           </Box>
-          <IconButton color="inherit" component={Link} to="/dashboard/telemedicine">  {/* Link MailIcon to Telemedicine */}
+
+          <IconButton color="inherit" onClick={handleNotificationClick}>
+            <Badge badgeContent={unreadCount} color="error">
+              <NotificationsIcon />
+            </Badge>
+          </IconButton>
+          <Menu
+            anchorEl={anchorEl}
+            open={Boolean(anchorEl)}
+            onClose={handleMenuClose}
+            PaperProps={{
+              style: {
+                width: '300px',
+              },
+            }}
+          >
+            {notifications.length === 0 ? (
+              <MenuItem onClick={handleMenuClose}>No new notifications</MenuItem>
+            ) : (
+              notifications.map((notification) => (
+                <MenuItem key={notification._id} onClick={() => handleMarkAsRead(notification._id)}>
+                  <ListItemIcon>
+                    {notification.read ? <MailIcon /> : <Badge color="secondary" variant="dot"><MailIcon /></Badge>}
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={notification.title}
+                    secondary={notification.message}
+                  />
+                </MenuItem>
+              ))
+            )}
+          </Menu>
+
+          <IconButton color="inherit" component={Link} to="/dashboard/telemedicine">
             <Badge color="error">
               <MailIcon />
             </Badge>
           </IconButton>
-          <IconButton color="inherit">
-            <Badge color="error">
-              <NotificationsIcon />
-            </Badge>
-          </IconButton>
-          <IconButton color="inherit" component={Link} to={`/dashboard/profile/${userId}`}>  {/* Updated to link SettingsIcon to Profile with userId */}
+          <IconButton color="inherit" component={Link} to={`/dashboard/profile/${userId}`}>
             <SettingsIcon />
           </IconButton>
           <Button color="inherit" component={Link} to="/" onClick={handleLogout}>
@@ -236,7 +309,7 @@ function DashboardLayout(props) {
         sx={{ flexGrow: 1, p: 3, width: { sm: `calc(100% - ${drawerWidth}px)` } }}
       >
         <Toolbar />
-        <Outlet /> {/* Render child routes here */}
+        <Outlet />
       </Box>
     </Box>
   );

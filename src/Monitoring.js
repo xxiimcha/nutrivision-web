@@ -89,7 +89,7 @@ const Monitoring = () => {
   };
 
   const filteredData = data.filter(row =>
-    row.patientName.toLowerCase().includes(searchTerm.toLowerCase())
+    row.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -133,7 +133,7 @@ const Monitoring = () => {
 
               return (
                 <TableRow key={index}>
-                  <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>{row.patientName}</TableCell>
+                  <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>{row.name}</TableCell>
                   <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>{row.ageInMonths}</TableCell>
                   <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>{row.weight}</TableCell>
                   <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>{row.height}</TableCell>
@@ -187,9 +187,16 @@ const Monitoring = () => {
               <TextField
                 fullWidth
                 label="Add New Weight (kg)"
-                type="number"
+                type="text"  // Use 'text' to allow custom input handling
                 value={newImprovement}
-                onChange={(e) => setNewImprovement(e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  // Only allow numbers and one decimal point
+                  const regex = /^[0-9]*\.?[0-9]*$/;
+                  if (regex.test(value)) {
+                    setNewImprovement(value);
+                  }
+                }}
               />
             </Grid>
           </Grid>

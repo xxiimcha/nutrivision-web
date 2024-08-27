@@ -46,12 +46,13 @@ const FoodManagement = () => {
   const filteredKids = kids.filter(
     (kid) =>
       (kid.nutritionStatus === 'Malnourished' || kid.nutritionStatus === 'Obese') &&
-      kid.patientName.toLowerCase().includes(searchTerm.toLowerCase())
+      kid.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleViewMealPlan = (id) => {
-    const week = '2024-08-18'; // Example week; you should calculate or pass the correct week dynamically
-    navigate(`/dashboard/meal-plan/${id}/${week}`);
+  const handleViewMealPlan = (id, dateOfWeighing) => {
+    const date = new Date(dateOfWeighing);
+    const formattedDate = date.toISOString().split('T')[0]; // Extracts the date part in YYYY-MM-DD format
+    navigate(`/dashboard/meal-plan/${id}/${formattedDate}`);
   };
 
   const handleViewInfo = (kid) => {
@@ -102,12 +103,12 @@ const FoodManagement = () => {
           <TableBody>
             {filteredKids.map((kid, index) => (
               <TableRow key={index}>
-                <TableCell>{kid.patientName}</TableCell>
+                <TableCell>{kid.name}</TableCell>
                 <TableCell align="right">
                   <Button
                     variant="contained"
                     color="success"
-                    onClick={() => handleViewMealPlan(kid._id)}
+                    onClick={() => handleViewMealPlan(kid._id, kid.dateOfWeighing)}
                     sx={{ mr: 1 }}
                   >
                     See meal plan
@@ -158,7 +159,7 @@ const FoodManagement = () => {
                 <TableBody>
                   <TableRow>
                     <TableCell><strong>Patient Name:</strong></TableCell>
-                    <TableCell>{selectedKid.patientName}</TableCell>
+                    <TableCell>{selectedKid.name}</TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell><strong>Address:</strong></TableCell>
@@ -166,7 +167,7 @@ const FoodManagement = () => {
                   </TableRow>
                   <TableRow>
                     <TableCell><strong>Parent Name:</strong></TableCell>
-                    <TableCell>{selectedKid.parentName}</TableCell>
+                    <TableCell>{selectedKid.guardian}</TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell><strong>Date of Birth:</strong></TableCell>

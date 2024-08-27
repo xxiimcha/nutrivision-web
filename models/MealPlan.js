@@ -13,6 +13,7 @@ const daySchema = new mongoose.Schema({
   lunch: mealSchema,
   dinner: mealSchema,
   recommended: { type: Boolean, default: false },
+  status: { type: String, enum: ['done', 'in-progress', ''], default: '' },  // Status per day
 });
 
 const mealPlanSchema = new mongoose.Schema({
@@ -28,5 +29,8 @@ const mealPlanSchema = new mongoose.Schema({
 }, {
   timestamps: true,
 });
+
+module.exports = mongoose.model('MealPlan', mealPlanSchema);
+
 
 module.exports = mongoose.model('MealPlan', mealPlanSchema);

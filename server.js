@@ -29,6 +29,7 @@ const patientRecordsRoutes = require('./routes/patientRecords');
 const mealPlanRoutes = require('./routes/mealPlans');
 const userRoutes = require('./routes/users'); // Add this line to include the user routes
 const messageRoutes = require('./routes/messages');
+const notificationsRouter = require('./routes/notifications');
 
 app.use('/api/admins', adminRoutes);
 app.use('/api/login', loginRoutes);
@@ -37,6 +38,8 @@ app.use('/api/patient-records', patientRecordsRoutes);
 app.use('/api/meal-plans', mealPlanRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/messages', messageRoutes);
+app.use('/api/notifications', notificationsRouter);
+
 // Serve static assets if in production
 if (process.env.NODE_ENV === 'production') {
   // Set static folder
