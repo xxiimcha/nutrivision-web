@@ -40,7 +40,7 @@ const RecordsManagement = () => {
   };
 
   const filteredRecords = records.filter((record) =>
-    record.patientName.toLowerCase().includes(searchTerm.toLowerCase())
+    record.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleViewDetails = (recordId) => {
@@ -91,7 +91,7 @@ const RecordsManagement = () => {
                 <TableCell>{record.referenceNumber}</TableCell> {/* Added this line */}
                 <TableCell>{record.address}</TableCell>
                 <TableCell>{record.parentName}</TableCell>
-                <TableCell>{record.patientName}</TableCell>
+                <TableCell>{record.name}</TableCell>
                 <TableCell>{extractDate(record.dob)}</TableCell>
                 <TableCell>{record.gender}</TableCell>
                 <TableCell>{record.height}</TableCell>

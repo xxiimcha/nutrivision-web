@@ -53,7 +53,7 @@ const CustomListItem = styled(ListItem)(({ theme }) => ({
 
 function DashboardLayout(props) {
   const { window } = props;
-  const { role, name, email, userId } = useContext(UserContext);
+  const { role, name, email, userId, profilePicture } = useContext(UserContext);
   const navigate = useNavigate();
 
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -119,8 +119,23 @@ function DashboardLayout(props) {
   const drawer = (
     <div>
       <Toolbar />
-      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: 2, marginTop: '-70px' }}>
-        <Link to={`/dashboard/profile/${userId}`} style={{ textDecoration: 'none', color: 'inherit', textAlign: 'center' }}>
+      <Box
+        sx={{ 
+          display: 'flex', 
+          flexDirection: 'column', 
+          alignItems: 'center', 
+          justifyContent: 'center', 
+          p: 2, 
+          marginTop: '-70px',
+          textAlign: 'center' 
+        }}
+      >
+        <Link to={`/dashboard/profile/${userId}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+          <img
+            src={profilePicture || '/default-avatar.png'}
+            alt="Profile"
+            style={{ width: '60px', height: '60px', borderRadius: '50%', marginBottom: '10px' }}
+          />
           <Typography variant="h6" noWrap component="div" sx={{ fontSize: '20px', fontWeight: 'bold' }}>
             {name || 'User Name'}
           </Typography>
@@ -134,12 +149,10 @@ function DashboardLayout(props) {
       </Box>
       <Divider />
       <List>
-        {(role === 'Admin' || role === 'Super Admin') && (
-          <CustomListItem button component={Link} to="/dashboard">
-            <ListItemIcon><DashboardIcon /></ListItemIcon>
-            <ListItemText primary="Dashboard" />
-          </CustomListItem>
-        )}
+        <CustomListItem button component={Link} to="/dashboard">
+          <ListItemIcon><DashboardIcon /></ListItemIcon>
+          <ListItemText primary="Dashboard" />
+        </CustomListItem>
 
         {(role === 'Admin' || role === 'Super Admin') && (
           <CustomListItem button onClick={toggleAccountsDropdown}>
@@ -228,6 +241,14 @@ function DashboardLayout(props) {
             </Typography>
           </Box>
 
+          {role === 'Health Worker' && (
+            <IconButton color="inherit" component={Link} to="/dashboard/telemedicine">
+              <Badge color="error">
+                <MailIcon />
+              </Badge>
+            </IconButton>
+          )}
+
           <IconButton color="inherit" onClick={handleNotificationClick}>
             <Badge badgeContent={unreadCount} color="error">
               <NotificationsIcon />
@@ -260,11 +281,6 @@ function DashboardLayout(props) {
             )}
           </Menu>
 
-          <IconButton color="inherit" component={Link} to="/dashboard/telemedicine">
-            <Badge color="error">
-              <MailIcon />
-            </Badge>
-          </IconButton>
           <IconButton color="inherit" component={Link} to={`/dashboard/profile/${userId}`}>
             <SettingsIcon />
           </IconButton>
