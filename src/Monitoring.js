@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import {
-  Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, TextField,
-  Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Grid, IconButton
+  Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Button,
+  Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Grid, IconButton,
+  TextField
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import axios from 'axios';
+import { UserContext } from './context/UserContext'; // Assuming you have a UserContext for role information
 
 const Monitoring = () => {
   const [data, setData] = useState([]);
@@ -12,6 +14,7 @@ const Monitoring = () => {
   const [openModal, setOpenModal] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(null);
   const [newImprovement, setNewImprovement] = useState('');
+  const { role } = useContext(UserContext); // Get the user role from context
 
   // Fetch data from the patient records table and their associated weekly improvements
   useEffect(() => {
@@ -128,88 +131,111 @@ const Monitoring = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {filteredData.map((row, index) => {
-              const percentageOfGoalAchieved = calculatePercentageOfGoalAchieved(row.latestWeight, row.goalWeight);
+            {filteredData.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={8} align="center">No records found</TableCell>
+              </TableRow>
+            ) : (
+              filteredData.map((row, index) => {
+                const percentageOfGoalAchieved = calculatePercentageOfGoalAchieved(row.latestWeight, row.goalWeight);
 
-              return (
-                <TableRow key={index}>
-                  <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>{row.name}</TableCell>
-                  <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>{row.ageInMonths}</TableCell>
-                  <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>{row.weight}</TableCell>
-                  <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>{row.height}</TableCell>
-                  <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>{row.goalWeight}</TableCell>
-                  <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>
-                    <Button
-                      variant="outlined"
-                      onClick={() => handleOpenModal(index)}
-                    >
-                      View Logs
-                    </Button>
-                  </TableCell>
-                  <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>{percentageOfGoalAchieved}%</TableCell>
-                  <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>{row.nutritionStatus}</TableCell>
-                </TableRow>
-              );
-            })}
+                return (
+                  <TableRow key={index}>
+                    <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>{row.name}</TableCell>
+                    <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>{row.ageInMonths}</TableCell>
+                    <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>{row.weight}</TableCell>
+                    <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>{row.height}</TableCell>
+                    <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>{row.goalWeight}</TableCell>
+                    <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>
+                      <Button
+                        variant="outlined"
+                        onClick={() => handleOpenModal(index)}
+                      >
+                        View Logs
+                      </Button>
+                    </TableCell>
+                    <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>{percentageOfGoalAchieved}%</TableCell>
+                    <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>{row.nutritionStatus}</TableCell>
+                  </TableRow>
+                );
+              })
+            )}
           </TableBody>
         </Table>
       </TableContainer>
 
       {/* Modal for Weekly Improvement Logs */}
       <Dialog open={openModal} onClose={handleCloseModal}>
-        <DialogTitle>Weekly Improvement Logs</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            Improvement logs for {selectedIndex !== null && data[selectedIndex]?.patientName}
-          </DialogContentText>
-          {selectedIndex !== null && data[selectedIndex]?.improvementLogs && (
-            <TableContainer component={Paper} style={{ marginTop: 20 }}>
-              <Table aria-label="simple table">
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Week</TableCell>
-                    <TableCell>Weight Gain (kg)</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {data[selectedIndex].improvementLogs.map((log, i) => (
-                    <TableRow key={i}>
-                      <TableCell>{log.weekNumber}</TableCell>
-                      <TableCell>{log.improvement}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          )}
-          <Grid container spacing={2} style={{ marginTop: 20 }}>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Add New Weight (kg)"
-                type="text"  // Use 'text' to allow custom input handling
-                value={newImprovement}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  // Only allow numbers and one decimal point
-                  const regex = /^[0-9]*\.?[0-9]*$/;
-                  if (regex.test(value)) {
-                    setNewImprovement(value);
-                  }
-                }}
-              />
-            </Grid>
-          </Grid>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseModal} color="primary">
-            Cancel
-          </Button>
-          <Button onClick={handleAddImprovement} color="primary">
-            Add Improvement
-          </Button>
-        </DialogActions>
-      </Dialog>
+  <DialogTitle>Weekly Improvement Logs</DialogTitle>
+  <DialogContent>
+    <DialogContentText>
+      Improvement logs for {selectedIndex !== null && data[selectedIndex]?.patientName}
+    </DialogContentText>
+    
+    {selectedIndex !== null && data[selectedIndex]?.improvementLogs ? (
+      data[selectedIndex].improvementLogs.length > 0 ? (
+        <TableContainer component={Paper} style={{ marginTop: 20 }}>
+          <Table aria-label="simple table">
+            <TableHead>
+              <TableRow>
+                <TableCell>Week</TableCell>
+                <TableCell>Weight Gain (kg)</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {data[selectedIndex].improvementLogs.map((log, i) => (
+                <TableRow key={i}>
+                  <TableCell>{log.weekNumber}</TableCell>
+                  <TableCell>{log.improvement}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      ) : (
+        <DialogContentText style={{ marginTop: 20, textAlign: 'center' }}>
+          No records found
+        </DialogContentText>
+      )
+    ) : (
+      <DialogContentText style={{ marginTop: 20, textAlign: 'center' }}>
+        No records found
+      </DialogContentText>
+    )}
+
+    {role !== 'Nutritionist' && (
+      <Grid container spacing={2} style={{ marginTop: 20 }}>
+        <Grid item xs={12}>
+          <TextField
+            fullWidth
+            label="Add New Weight (kg)"
+            type="text"  // Use 'text' to allow custom input handling
+            value={newImprovement}
+            onChange={(e) => {
+              const value = e.target.value;
+              // Only allow numbers and one decimal point
+              const regex = /^[0-9]*\.?[0-9]*$/;
+              if (regex.test(value)) {
+                setNewImprovement(value);
+              }
+            }}
+          />
+        </Grid>
+      </Grid>
+    )}
+  </DialogContent>
+  <DialogActions>
+    <Button onClick={handleCloseModal} color="primary">
+      Cancel
+    </Button>
+    {role !== 'Nutritionist' && (
+      <Button onClick={handleAddImprovement} color="primary">
+        Add Improvement
+      </Button>
+    )}
+  </DialogActions>
+</Dialog>
+
     </div>
   );
 };

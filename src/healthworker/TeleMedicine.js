@@ -134,9 +134,13 @@ const Telemed = () => {
                 }}
               >
                 <ListItemAvatar>
-                  <Avatar>{user.email.charAt(0).toUpperCase()}</Avatar>
+                  <Avatar>{user.firstName.charAt(0).toUpperCase()}</Avatar>
                 </ListItemAvatar>
-                <ListItemText primary={user.email} secondary="Last message..." />
+                <ListItemText 
+                  primary={`${user.firstName || ''} ${user.lastName || ''}`.trim()} 
+                  secondary="Last message..." 
+                />
+
               </ListItem>
             ))}
           </List>
@@ -167,7 +171,9 @@ const Telemed = () => {
                 marginBottom: 2,
               }}
             >
-              <Typography variant="h6">Conversation with {selectedUser.email}</Typography>
+              <Typography variant="h6">
+                Conversation with {`${selectedUser.firstName || ''} ${selectedUser.lastName || ''}`.trim()}
+              </Typography>
               <Box>
                 <IconButton color="primary">
                   <VideocamIcon />
