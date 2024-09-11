@@ -32,6 +32,8 @@ import HealthWorkerTelemedicine from './healthworker/TeleMedicine';
 import HealthWorkerRecords from './healthworker/RecordsManagement';
 import HealthWorkerNewRecord from './healthworker/AddRecord';
 import PatientDetails from './healthworker/PatientDetails';
+import PatientFoodManagement from './healthworker/FoodManagement';
+import PatientMealPlan from './healthworker/MealPlan';
 
 // Toastify
 import { ToastContainer, toast } from 'react-toastify';
@@ -86,7 +88,9 @@ function AppRoutes() {
             <Route path="records-management" element={<HealthWorkerRecords />} />
             <Route path="add-record" element={<HealthWorkerNewRecord />} />
             <Route path="patient-details/:recordId" element={<PatientDetails />} />
+            <Route path="meal-plan/:id/:week" element={<PatientMealPlan />} />
             <Route path="monitoring" element={<Monitoring />} />
+            <Route path="food-management" element={<PatientFoodManagement />} />
           </>
         )}
       </Route>

@@ -1,28 +1,24 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const MealPlan = require('../models/MealPlan');
-const axios = require('axios');
+const predefinedMeals = require('../data/predefinedMeals'); // Import the predefined meals
 
 const router = express.Router();
 
-// Directly include the provided API key
-const SPOONACULAR_API_KEY = '94c29ef0d6a5411cab289e187743f31d';
-
-// Helper function to fetch suggested meals
-const fetchSuggestedMeals = async (mealType) => {
+// Helper function to fetch suggested meals from predefined data
+const fetchSuggestedMeals = async (mealType, category = 'both') => {
   try {
-    const response = await axios.get(`https://api.spoonacular.com/recipes/random`, {
-      params: {
-        apiKey: SPOONACULAR_API_KEY,  // Using the API key directly in the code
-        number: 1,
-        tags: mealType
-      }
-    });
-    const recipe = response.data.recipes[0];
+    // Filter meals based on mealType (breakfast, lunch, dinner) and category (malnourished, obese, both)
+    const meals = predefinedMeals[mealType].filter(meal => meal.category === category || meal.category === 'both');
+
+    // Randomly select a meal from the filtered list
+    const randomMeal = meals[Math.floor(Math.random() * meals.length)];
+
     return {
-      mainDish: recipe.title,
-      drinks: recipe.drinks ? recipe.drinks : 'Water',
-      vitamins: recipe.vitamins ? recipe.vitamins : 'Multivitamin',
+      mainDish: randomMeal.mainDish,
+      drinks: randomMeal.drinks || 'Water',
+      vitamins: randomMeal.vitamins || 'Multivitamin',
+      ingredients: randomMeal.ingredients,
     };
   } catch (error) {
     console.error('Error fetching suggested meal:', error);
@@ -38,7 +34,7 @@ const fetchSuggestedMeals = async (mealType) => {
 router.get('/:id/:week', async (req, res) => {
   try {
     const { id, week } = req.params;
-    console.log('Received ID:', id, 'Week:', week); // Debugging line
+    console.log('Received ID:', id, 'Week:', week);
 
     let mealPlan = await MealPlan.findOne({ patientId: id, week });
     if (!mealPlan) {

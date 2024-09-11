@@ -38,6 +38,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST route to add an improvement to a specific patient record
+// POST route to add an improvement to a specific patient record
 router.post('/:id/add-improvement', async (req, res) => {
   try {
     const { id } = req.params;
@@ -62,6 +63,9 @@ router.post('/:id/add-improvement', async (req, res) => {
       return res.status(400).json({ message: 'Invalid weight gain calculation' });
     }
 
+    // Calculate improvement as a percentage
+    const improvement = (previousWeight !== 0) ? (weightGain / previousWeight) * 100 : weightGain;
+
     // Create a new weekly improvement entry
     const weekNumber = (await WeeklyImprovement.countDocuments({ patientId: id })) + 1;
     const newImprovement = new WeeklyImprovement({
@@ -69,6 +73,7 @@ router.post('/:id/add-improvement', async (req, res) => {
       weekNumber,
       currentWeight,
       weightGain,
+      improvement, // Pass the calculated improvement here
     });
 
     // Save the weekly improvement to the database
@@ -93,6 +98,20 @@ router.get('/:id/improvements', async (req, res) => {
   } catch (error) {
     console.error('Error fetching improvements:', error);
     res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Add this to your Express routes file
+router.get('/health-data/count', async (req, res) => {
+  try {
+    // Count malnourished and obese children based on the 'nutritionStatus' field
+    const malnourishedCount = await PatientRecord.countDocuments({ nutritionStatus: 'Malnourished' });
+    const obeseCount = await PatientRecord.countDocuments({ nutritionStatus: 'Obese' });
+
+    res.status(200).json({ malnourished: malnourishedCount, obese: obeseCount });
+  } catch (error) {
+    console.error('Error fetching health data:', error);
+    res.status(500).json({ message: 'Error fetching health data' });
   }
 });
 

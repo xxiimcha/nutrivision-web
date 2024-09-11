@@ -1,4 +1,5 @@
-import React, { useContext, useState, useEffect } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
+import io from 'socket.io-client'; // Import Socket.io client
 import {
   Box,
   Button,
@@ -8,7 +9,6 @@ import {
   List,
   ListItem,
   ListItemText,
-  Divider,
   Avatar,
   InputAdornment,
   ListItemAvatar,
@@ -22,12 +22,54 @@ import PhoneIcon from '@mui/icons-material/Phone';
 import axios from 'axios';
 import { UserContext } from '../context/UserContext';
 
+const socket = io('http://localhost:5000'); // Connect to your Socket.io server
+
 const Telemed = () => {
-  const { userId } = useContext(UserContext);  // Get userId from UserContext
+  const { userId } = useContext(UserContext); // Get userId from UserContext
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
+  const [incomingCall, setIncomingCall] = useState(null);
+  const [missedCalls, setMissedCalls] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+
+  // Fetch missed calls and call history when the component is mounted
+  useEffect(() => {
+    const fetchCallData = async () => {
+      try {
+        // Fetch missed calls
+        const missedResponse = await axios.get(`http://localhost:5000/api/calls/missed?userId=${userId}`);
+        setMissedCalls(missedResponse.data);
+
+        // Fetch notifications
+        const notificationsResponse = await axios.get(`http://localhost:5000/api/notifications/${userId}`);
+        setNotifications(notificationsResponse.data);
+
+      } catch (error) {
+        console.error('Error fetching missed calls or notifications:', error);
+      }
+    };
+
+    fetchCallData();
+  }, [userId]);
+
+  useEffect(() => {
+    // Register user with Socket.io when component mounts
+    if (userId) {
+      socket.emit('register-user', userId);
+    }
+
+    // Listen for incoming call notifications
+    socket.on('incoming-call', (data) => {
+      setIncomingCall(data.callerId); // Set the caller's ID when a call is incoming
+    });
+
+    // Cleanup the socket connection when the component is unmounted
+    return () => {
+      socket.off('incoming-call');
+    };
+  }, [userId]);
 
   useEffect(() => {
     // Fetch users from backend
@@ -81,9 +123,29 @@ const Telemed = () => {
     }
   };
 
+  // Modify the initiateCall function to include the callType (video or audio)
+  const initiateCall = (callType) => {
+    // Emit call event to the server with the type of call (video or audio)
+    socket.emit('call-user', { callerId: userId, receiverId: selectedUser._id, callType });
+  };
+
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     return isNaN(date.getTime()) ? 'Invalid Date' : date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const acceptCall = () => {
+    // Handle the call acceptance logic
+    console.log('Call accepted from:', incomingCall);
+    socket.emit('accept-call', { callerId: incomingCall, receiverId: userId });
+    setIncomingCall(null); // Reset after accepting
+  };
+
+  const declineCall = () => {
+    // Handle call decline and mark it as missed
+    console.log('Call declined');
+    socket.emit('decline-call', { callerId: incomingCall, receiverId: userId });
+    setIncomingCall(null); // Reset after declining
   };
 
   return (
@@ -140,7 +202,6 @@ const Telemed = () => {
                   primary={`${user.firstName || ''} ${user.lastName || ''}`.trim()} 
                   secondary="Last message..." 
                 />
-
               </ListItem>
             ))}
           </List>
@@ -175,10 +236,12 @@ const Telemed = () => {
                 Conversation with {`${selectedUser.firstName || ''} ${selectedUser.lastName || ''}`.trim()}
               </Typography>
               <Box>
-                <IconButton color="primary">
+                {/* Initiate video call */}
+                <IconButton color="primary" onClick={() => initiateCall('video')}>
                   <VideocamIcon />
                 </IconButton>
-                <IconButton color="primary">
+                {/* Initiate audio call */}
+                <IconButton color="primary" onClick={() => initiateCall('audio')}>
                   <PhoneIcon />
                 </IconButton>
               </Box>
@@ -243,6 +306,57 @@ const Telemed = () => {
           )}
         </Grid>
       </Grid>
+
+      {/* Incoming call notification */}
+      {incomingCall && (
+        <div>
+          <p>Incoming call from user {incomingCall}!</p>
+          <Button onClick={acceptCall} variant="contained" color="primary" sx={{ mr: 2 }}>
+            Accept
+          </Button>
+          <Button onClick={declineCall} variant="outlined" color="secondary">
+            Decline
+          </Button>
+        </div>
+      )}
+
+      {/* Display missed calls */}
+      {missedCalls.length > 0 && (
+        <Box sx={{ padding: 2 }}>
+          <Typography variant="h6" gutterBottom>
+            Missed Calls:
+          </Typography>
+          <List>
+            {missedCalls.map((call, index) => (
+              <ListItem key={index}>
+                <ListItemText
+                  primary={`Missed ${call.callType} call from ${call.callerId.firstName} ${call.callerId.lastName}`}
+                  secondary={formatDate(call.timestamp)}
+                />
+              </ListItem>
+            ))}
+          </List>
+        </Box>
+      )}
+
+      {/* Display notifications */}
+      {notifications.length > 0 && (
+        <Box sx={{ padding: 2 }}>
+          <Typography variant="h6" gutterBottom>
+            Notifications:
+          </Typography>
+          <List>
+            {notifications.map((notification, index) => (
+              <ListItem key={index}>
+                <ListItemText
+                  primary={notification.title}
+                  secondary={notification.message}
+                />
+              </ListItem>
+            ))}
+          </List>
+        </Box>
+      )}
     </Container>
   );
 };

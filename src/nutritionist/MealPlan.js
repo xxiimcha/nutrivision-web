@@ -11,27 +11,30 @@ import {
   Button,
   Paper,
   TableContainer,
-  Switch,
   Modal,
   TextField,
   Badge,
+  Card,
+  CardContent,
+  Grid,
+  IconButton,
 } from '@mui/material';
+import { Edit, CheckCircle, Send, ArrowBackIos, ArrowForwardIos } from '@mui/icons-material';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import moment from 'moment';
 
 const MealPlan = () => {
-  const { id, week } = useParams(); // Get the patient ID and week from the URL
+  const { id, week } = useParams(); 
   const [mealPlan, setMealPlan] = useState({});
-  const [patientInfo, setPatientInfo] = useState({ patientName: 'N/A', height: 'N/A', weight: 'N/A' }); // State for patient info
-  const [open, setOpen] = useState(false); // State to control modal visibility
+  const [patientInfo, setPatientInfo] = useState({ patientName: 'N/A', height: 'N/A', weight: 'N/A' });
+  const [open, setOpen] = useState(false); 
   const [selectedDay, setSelectedDay] = useState('');
   const [selectedMealType, setSelectedMealType] = useState('');
-  const [mealDetails, setMealDetails] = useState({ mainDish: '', drinks: '', vitamins: '' });
-  const [proofFile, setProofFile] = useState(null); // State to store proof file
+  const [mealDetails, setMealDetails] = useState({ mainDish: '', drinks: '', vitamins: '', ingredients: '' });
+  const [proofFile, setProofFile] = useState(null);
   const navigate = useNavigate();
 
-  // Calculate start and end dates of the week
   const startOfWeek = moment(week).startOf('week').format('YYYY-MM-DD');
   const endOfWeek = moment(week).endOf('week').format('YYYY-MM-DD');
 
@@ -65,33 +68,58 @@ const MealPlan = () => {
     navigate(`/dashboard/meal-plan/${id}/${newWeek.format('YYYY-MM-DD')}`);
   };
 
+  const handleSendMealPlan = async (day) => {
+    try {
+      const updatedMealPlan = { ...mealPlan };
+      updatedMealPlan[day].status = 'sent'; 
+    
+      await axios.post(`http://localhost:5000/api/meal-plans/${id}/${week}`, updatedMealPlan);
+      setMealPlan(updatedMealPlan);
+    
+      const patientResponse = await axios.get(`http://localhost:5000/api/patient-records/${id}`);
+      const userId = patientResponse.data.userId; 
+    
+      const notification = {
+        userId: userId,
+        title: `Meal Plan for ${patientInfo.patientName}`,
+        message: `The meal plan for ${day}, week of ${week}, has been sent.`,
+        reserved_time: new Date().toISOString(),
+        post_id: null,
+        updated_at: new Date().toISOString(),
+      };
+    
+      await axios.post(`http://localhost:5000/api/notifications`, notification);
+    
+      console.log('Meal plan sent and notification created successfully.');
+    } catch (error) {
+      console.error('Error sending meal plan or creating notification:', error);
+    }
+  };
+  
   const handleOpenModal = (day, mealType) => {
     setSelectedDay(day);
     setSelectedMealType(mealType);
-    setMealDetails(mealPlan[day]?.[mealType] || { mainDish: '', drinks: '', vitamins: '' });
+    setMealDetails(mealPlan[day]?.[mealType] || { mainDish: '', drinks: '', vitamins: '', ingredients: '' });
     setOpen(true);
   };
 
   const handleCloseModal = () => {
     setOpen(false);
-    setMealDetails({ mainDish: '', drinks: '', vitamins: '' });
+    setMealDetails({ mainDish: '', drinks: '', vitamins: '', ingredients: '' });
   };
 
   const handleSaveMeal = async () => {
     const updatedMealPlan = { ...mealPlan };
 
-    // Ensure the selected day exists in the mealPlan object
     if (!updatedMealPlan[selectedDay]) {
       updatedMealPlan[selectedDay] = {
         breakfast: {},
         lunch: {},
         dinner: {},
-        recommended: false,
-        status: '', // Initialize status if not set
+        status: '', 
       };
     }
 
-    // Update the meal details for the selected meal type
     updatedMealPlan[selectedDay][selectedMealType] = mealDetails;
 
     try {
@@ -118,184 +146,118 @@ const MealPlan = () => {
     }
   };
 
-  const handleSendMealPlan = async (day) => {
-    try {
-      const updatedMealPlan = { ...mealPlan };
-      updatedMealPlan[day].status = 'sent'; // Set status for the specific day
-  
-      // Send the updated meal plan
-      await axios.post(`http://localhost:5000/api/meal-plans/${id}/${week}`, updatedMealPlan);
-      setMealPlan(updatedMealPlan);
-  
-      // Fetch the patient record to get the userId for notifications
-      const patientResponse = await axios.get(`http://localhost:5000/api/patient-records/${id}`);
-      const userId = patientResponse.data.userId; // Assuming the userId is stored under 'userId' in the patient record
-  
-      // Create a notification with required fields
-      const notification = {
-        userId: userId,
-        title: `Meal Plan for ${patientInfo.name}`,
-        message: `The meal plan for ${day}, week of ${week}, has been sent.`,
-        reserved_time: new Date().toISOString(), // Assuming you want to store the current time
-        post_id: null, // If you have a specific post ID, replace 'null' with the appropriate value
-        updated_at: new Date().toISOString(), // The time the notification is created or updated
-      };
-  
-      // Send the notification to the backend
-      await axios.post(`http://localhost:5000/api/notifications`, notification);
-  
-      // Optionally, show a success message to the user
-      console.log('Meal plan sent and notification created successfully.');
-    } catch (error) {
-      console.error('Error sending meal plan or creating notification:', error);
-    }
-  };  
-
-  const handleProofUpload = async (day, mealType) => {
-    if (!proofFile) return;
-    const formData = new FormData();
-    formData.append('proof', proofFile);
-
-    try {
-      const response = await axios.post(`http://localhost:5000/api/meal-plans/${id}/${week}/upload-proof`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-
-      const updatedMealPlan = { ...mealPlan };
-      updatedMealPlan[day][mealType].proofStatus = 'done'; // Mark proof as uploaded
-      setMealPlan(updatedMealPlan);
-      setProofFile(null); // Clear file input after successful upload
-    } catch (error) {
-      console.error('Error uploading proof of meal:', error);
-    }
-  };
-
   const allMealsApproved = (day) => {
     return ['breakfast', 'lunch', 'dinner'].every(
       (mealType) => mealPlan[day]?.[mealType]?.approved
     );
   };
 
-  const handleRecommendedChange = async (day) => {
-    const updatedMealPlan = { ...mealPlan };
-    const recommended = !updatedMealPlan[day].recommended;
-    updatedMealPlan[day].recommended = recommended;
-  
-    try {
-      await axios.patch(`http://localhost:5000/api/meal-plans/${id}/${week}/recommend/${day}`, { recommended });
-      setMealPlan(updatedMealPlan);
-    } catch (error) {
-      console.error('Error updating recommended status:', error);
-    }
-  };  
-
   return (
     <Container>
-      <Typography variant="h4" gutterBottom>
+      <Typography variant="h4" gutterBottom sx={{ color: '#1565C0', fontWeight: 'bold' }}>
         Meal Plan
       </Typography>
-      <Box mb={2}>
-        <Typography variant="h6">
+      <Box mb={4}>
+        <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#1565C0' }}>
           Child's Name: {patientInfo.name}
         </Typography>
         <Typography variant="subtitle1">
-          Height: {patientInfo.height}, Weight: {patientInfo.weight}
+          Height: {patientInfo.height} cm, Weight: {patientInfo.weight} kg
         </Typography>
-        <Typography variant="subtitle1">
+        <Typography variant="subtitle1" sx={{ color: '#1565C0' }}>
           Week: {startOfWeek} to {endOfWeek}
         </Typography>
       </Box>
-      <Box display="flex" justifyContent="space-between" mb={2}>
-        <Button variant="contained" color="primary" onClick={() => handleWeekChange('previous')}>
+
+      <Box display="flex" justifyContent="space-between" mb={4}>
+        <Button
+          variant="contained"
+          startIcon={<ArrowBackIos />}
+          onClick={() => handleWeekChange('previous')}
+          sx={{ backgroundColor: '#1565C0' }}
+        >
           Previous Week
         </Button>
-        <Button variant="contained" color="secondary" onClick={() => handleWeekChange('next')}>
+        <Button
+          variant="contained"
+          endIcon={<ArrowForwardIos />}
+          onClick={() => handleWeekChange('next')}
+          sx={{ backgroundColor: '#1E88E5' }}
+        >
           Next Week
         </Button>
       </Box>
-      <TableContainer component={Paper}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>DAY</TableCell>
-              <TableCell>Breakfast</TableCell>
-              <TableCell>Lunch</TableCell>
-              <TableCell>Dinner</TableCell>
-              <TableCell>Actions</TableCell>
-              <TableCell>Status</TableCell> {/* New column for status */}
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => (
-              <TableRow key={day}>
-                <TableCell>{day}</TableCell>
+
+      <Grid container spacing={3}>
+        {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => (
+          <Grid item xs={12} sm={6} md={4} key={day}>
+            <Card sx={{ borderRadius: 4, boxShadow: 3 }}>
+              <CardContent>
+                <Typography variant="h6" gutterBottom sx={{ color: '#1565C0' }}>
+                  {day}
+                </Typography>
                 {['breakfast', 'lunch', 'dinner'].map((mealType) => (
-                  <TableCell key={mealType}>
-                    <div>Main dish: {mealPlan[day]?.[mealType]?.mainDish || 'No meal planned'}</div>
-                    <div>Drinks: {mealPlan[day]?.[mealType]?.drinks || 'No meal planned'}</div>
-                    <div>Vitamins: {mealPlan[day]?.[mealType]?.vitamins || 'No meal planned'}</div>
+                  <Box key={mealType} mb={3} sx={{ backgroundColor: '#E3F2FD', padding: 2, borderRadius: 2 }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: '#1565C0' }}>
+                      {mealType.charAt(0).toUpperCase() + mealType.slice(1)}
+                    </Typography>
+                    <Typography variant="body2">
+                      <strong>Main dish:</strong> {mealPlan[day]?.[mealType]?.mainDish || 'No meal planned'}
+                    </Typography>
+                    <Typography variant="body2">
+                      <strong>Drinks:</strong> {mealPlan[day]?.[mealType]?.drinks || 'No meal planned'}
+                    </Typography>
+                    <Typography variant="body2">
+                      <strong>Vitamins:</strong> {mealPlan[day]?.[mealType]?.vitamins || 'No vitamins listed'}
+                    </Typography>
+                    <Typography variant="body2">
+                      <strong>Ingredients:</strong> {Array.isArray(mealPlan[day]?.[mealType]?.ingredients) ? mealPlan[day]?.[mealType]?.ingredients.join(', ') : 'No ingredients listed'}
+                    </Typography>
+
                     {mealPlan[day]?.[mealType]?.approved ? (
-                      <div>
-                        <Button variant="contained" color="primary" sx={{ mt: 1 }}>
-                          View Proof of Meal
-                        </Button>
-                        <div style={{ marginTop: '8px' }}>
-                          <Badge
-                            color={mealPlan[day]?.[mealType]?.proofStatus === 'done' ? 'success' : 'warning'}
-                            badgeContent={mealPlan[day]?.[mealType]?.proofStatus === 'done' ? 'Done' : 'In Progress'}
-                          />
-                        </div>
-                      </div>
+                      <IconButton sx={{ mt: 1, color: '#1565C0' }}>
+                        <CheckCircle />
+                      </IconButton>
                     ) : (
-                      <>
+                      <Box display="flex" justifyContent="space-between" mt={1}>
                         <Button
                           variant="contained"
-                          color="primary"
-                          sx={{ mt: 1, mr: 1 }}
+                          startIcon={<Edit />}
                           onClick={() => handleOpenModal(day, mealType)}
+                          sx={{ backgroundColor: '#1565C0' }}
                         >
                           {mealPlan[day]?.[mealType]?.mainDish ? 'Edit Meal' : 'Add Meal'}
                         </Button>
                         <Button
                           variant="contained"
                           color="success"
-                          sx={{ mt: 1 }}
+                          startIcon={<CheckCircle />}
                           onClick={() => handleApproveMeal(day, mealType)}
+                          sx={{ backgroundColor: '#0D47A1' }}
                         >
                           Approve
                         </Button>
-                      </>
+                      </Box>
                     )}
-                  </TableCell>                
+                  </Box>
                 ))}
-                <TableCell>
-                  <Switch
-                    checked={mealPlan[day]?.recommended || false}
-                    color="primary"
-                    inputProps={{ 'aria-label': 'recommended-switch' }}
-                    onChange={() => handleRecommendedChange(day)}
-                  />
-                  {allMealsApproved(day) && mealPlan[day].status !== 'sent' && (
-                    <Button variant="contained" color="success" sx={{ mt: 1 }} onClick={() => handleSendMealPlan(day)}>
-                      SEND MEAL PLAN
-                    </Button>
-                  )}
-                </TableCell>
-                <TableCell>
-                  <Badge
-                    color={mealPlan[day]?.status === 'sent' ? 'primary' : 'secondary'}
-                    badgeContent={mealPlan[day]?.status === 'sent' ? 'Sent' : 'Not Sent'}
-                  />
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
 
-      {/* Modal for adding/editing meal */}
+                {allMealsApproved(day) && mealPlan[day]?.status !== 'sent' && (
+                  <Button
+                    variant="contained"
+                    startIcon={<Send />}
+                    onClick={() => handleSendMealPlan(day)}
+                    sx={{ backgroundColor: '#2196F3' }}
+                  >
+                    SEND MEAL PLAN
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
+
       <Modal open={open} onClose={handleCloseModal}>
         <Box
           sx={{
@@ -305,7 +267,7 @@ const MealPlan = () => {
             transform: 'translate(-50%, -50%)',
             width: 400,
             bgcolor: 'background.paper',
-            border: '2px solid #000',
+            border: '2px solid #1565C0',
             boxShadow: 24,
             p: 4,
           }}
@@ -334,23 +296,19 @@ const MealPlan = () => {
             fullWidth
             sx={{ mb: 2 }}
           />
+          {/* TextArea for ingredients */}
           <TextField
-            type="file"
-            onChange={(e) => setProofFile(e.target.files[0])}
+            label="Ingredients"
+            value={mealDetails.ingredients}
+            onChange={(e) => setMealDetails({ ...mealDetails, ingredients: e.target.value })}
             fullWidth
+            multiline
+            rows={4}
             sx={{ mb: 2 }}
           />
           <Box display="flex" justifyContent="space-between" mt={2}>
-            <Button variant="contained" color="primary" onClick={handleSaveMeal}>
+            <Button variant="contained" sx={{ backgroundColor: '#1565C0' }} onClick={handleSaveMeal}>
               Save
-            </Button>
-            <Button
-              variant="contained"
-              color="secondary"
-              onClick={() => handleProofUpload(selectedDay, selectedMealType)}
-              disabled={!proofFile}
-            >
-              Upload Proof
             </Button>
             <Button variant="contained" color="secondary" onClick={handleCloseModal}>
               Cancel

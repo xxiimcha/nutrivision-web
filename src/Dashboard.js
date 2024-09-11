@@ -2,27 +2,28 @@ import React, { useEffect, useState } from 'react';
 import Typography from '@mui/material/Typography';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Paper, Box, Grid, ButtonGroup, Button, Card, CardContent } from '@mui/material';
+import axios from 'axios';
 
+// Fetch health data from backend API (replace with your actual API endpoint)
 const fetchHealthData = async () => {
-  // Simulate fetching data from an API
-  return [
-    { week: 1, month: 'Jan', malnourished: 20, obese: 5 },
-    { week: 2, month: 'Feb', malnourished: 18, obese: 7 },
-    { week: 3, month: 'Mar', malnourished: 15, obese: 8 },
-    { week: 4, month: 'Apr', malnourished: 10, obese: 10 },
-    { week: 5, month: 'May', malnourished: 8, obese: 12 },
-    { week: 6, month: 'Jun', malnourished: 4, obese: 22 },
-    // Add more data as needed
-  ];
+  try {
+    console.log('Fetching health data...');
+    const response = await axios.get('http://localhost:5000/api/patient-records/health-data/count'); // Replace with your API URL
+    console.log('Health data fetched successfully:', response.data);
+    return response.data || [];  // Ensure the response data is an array
+  } catch (error) {
+    console.error('Error fetching health data:', error);
+    return [];  // Return an empty array in case of error
+  }
 };
 
 const calculateImprovementPercentage = (newValue, oldValue) => {
-  if (oldValue === 0) return 0;
+  if (oldValue === 0 || oldValue === undefined || newValue === undefined) return 0;
   return ((oldValue - newValue) / oldValue) * 100;
 };
 
 const calculateObeseImprovementPercentage = (newValue, oldValue) => {
-  if (oldValue === 0) return 0;
+  if (oldValue === 0 || oldValue === undefined || newValue === undefined) return 0;
   return ((newValue - oldValue) / oldValue) * 100;
 };
 
@@ -35,42 +36,39 @@ function Dashboard() {
   useEffect(() => {
     const getData = async () => {
       const healthData = await fetchHealthData();
-
-      // Calculate the weekly improvement percentage for malnourished and obese children
-      const dataWithImprovementPercentage = healthData.map((entry, index, arr) => {
-        if (index === 0) {
-          return { ...entry, malnourishedChange: 0, obeseChange: 0 };
-        }
-        const prevEntry = arr[index - 1];
-        return {
-          ...entry,
-          malnourishedChange: calculateImprovementPercentage(entry.malnourished, prevEntry.malnourished),
-          obeseChange: calculateObeseImprovementPercentage(entry.obese, prevEntry.obese),
-        };
-      });
-
-      setData(dataWithImprovementPercentage);
-
-      // Calculate counts of malnourished and obese children
-      const latestData = dataWithImprovementPercentage[dataWithImprovementPercentage.length - 1];
-      setMalnourishedCount(latestData.malnourished);
-      setObeseCount(latestData.obese);
+      console.log('Raw health data:', healthData); // Ensure the response is correct
+  
+      if (healthData) {
+        // Directly set the malnourished and obese counts from the response
+        console.log('Setting malnourished and obese counts');
+        setMalnourishedCount(healthData.malnourished || 0);
+        setObeseCount(healthData.obese || 0);
+      } else {
+        console.error('No data returned from the API');
+      }
     };
+  
     getData();
   }, []);
+  
 
   const handleChangeViewBy = (newViewBy) => {
+    console.log(`Changing view to: ${newViewBy}`);
     setViewBy(newViewBy);
   };
 
   // Filter data for February to May if view by months is selected
   const filteredData = viewBy === 'months' ? data.filter(item => ['Feb', 'Mar', 'Apr', 'May'].includes(item.month)) : data;
 
+  console.log('Filtered data for the current view:', filteredData);
+
   return (
     <Box sx={{ padding: 2 }}>
       <Typography variant="h4" gutterBottom>
         Health Improvement Dashboard
       </Typography>
+
+      {/* Cards displaying the total count of malnourished and obese children */}
       <Grid container spacing={2} sx={{ marginBottom: 2 }}>
         <Grid item xs={12} md={6}>
           <Card>
@@ -97,6 +95,8 @@ function Dashboard() {
           </Card>
         </Grid>
       </Grid>
+
+      {/* Button Group to toggle between weeks and months view */}
       <ButtonGroup sx={{ marginBottom: 2 }}>
         <Button
           variant={viewBy === 'weeks' ? 'contained' : 'outlined'}
@@ -111,6 +111,8 @@ function Dashboard() {
           View by Months
         </Button>
       </ButtonGroup>
+
+      {/* Line charts for improvements in malnourished and obese children */}
       <Grid container spacing={2}>
         <Grid item xs={12} md={6}>
           <Paper sx={{ padding: 2, marginBottom: 2 }}>
@@ -134,6 +136,7 @@ function Dashboard() {
             </ResponsiveContainer>
           </Paper>
         </Grid>
+
         <Grid item xs={12} md={6}>
           <Paper sx={{ padding: 2, marginBottom: 2 }}>
             <Typography variant="h6" gutterBottom>

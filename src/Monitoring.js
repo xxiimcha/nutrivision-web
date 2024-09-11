@@ -57,9 +57,32 @@ const Monitoring = () => {
     setNewImprovement('');
   };
 
-  const calculatePercentageOfGoalAchieved = (latestWeight, goalWeight) => {
+  const calculatePercentageOfGoalAchieved = (latestWeight, goalWeight, nutritionStatus) => {
     if (goalWeight <= 0) return 0; // Avoid division by zero
-    return ((latestWeight / goalWeight) * 100).toFixed(2);
+
+    let percentageAchieved = 0;
+
+    // Determine whether the patient needs to gain or lose weight based on nutritionStatus
+    if (nutritionStatus === 'Malnourished') {
+      // If malnourished, they should gain weight
+      percentageAchieved = ((latestWeight / goalWeight) * 100).toFixed(2);
+    } else if (nutritionStatus === 'Obese') {
+      // If obese, they should lose weight (goalWeight should be lower than current weight)
+      const weightLossGoal = goalWeight; // Assuming goal weight is the target to lose
+      const weightLost = latestWeight - goalWeight;
+      percentageAchieved = ((weightLost / weightLossGoal) * 100).toFixed(2);
+    }
+
+    return percentageAchieved >= 0 ? percentageAchieved : 0;
+  };
+
+  const determineAction = (nutritionStatus) => {
+    if (nutritionStatus === 'Malnourished') {
+      return 'Gain Weight';
+    } else if (nutritionStatus === 'Obese') {
+      return 'Lose Weight';
+    }
+    return 'Maintain Weight';
   };
 
   const handleAddImprovement = async () => {
@@ -128,16 +151,18 @@ const Monitoring = () => {
               <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>Weekly Improvement (kg)</TableCell>
               <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>Percentage of Goal Achieved</TableCell>
               <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>Nutritional Status</TableCell>
+              <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>Action Required</TableCell> {/* New Column */}
             </TableRow>
           </TableHead>
           <TableBody>
             {filteredData.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} align="center">No records found</TableCell>
+                <TableCell colSpan={9} align="center">No records found</TableCell>
               </TableRow>
             ) : (
               filteredData.map((row, index) => {
-                const percentageOfGoalAchieved = calculatePercentageOfGoalAchieved(row.latestWeight, row.goalWeight);
+                const percentageOfGoalAchieved = calculatePercentageOfGoalAchieved(row.latestWeight, row.goalWeight, row.nutritionStatus);
+                const actionRequired = determineAction(row.nutritionStatus);
 
                 return (
                   <TableRow key={index}>
@@ -156,6 +181,7 @@ const Monitoring = () => {
                     </TableCell>
                     <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>{percentageOfGoalAchieved}%</TableCell>
                     <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>{row.nutritionStatus}</TableCell>
+                    <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>{actionRequired}</TableCell> {/* New Cell */}
                   </TableRow>
                 );
               })
@@ -166,76 +192,75 @@ const Monitoring = () => {
 
       {/* Modal for Weekly Improvement Logs */}
       <Dialog open={openModal} onClose={handleCloseModal}>
-  <DialogTitle>Weekly Improvement Logs</DialogTitle>
-  <DialogContent>
-    <DialogContentText>
-      Improvement logs for {selectedIndex !== null && data[selectedIndex]?.patientName}
-    </DialogContentText>
-    
-    {selectedIndex !== null && data[selectedIndex]?.improvementLogs ? (
-      data[selectedIndex].improvementLogs.length > 0 ? (
-        <TableContainer component={Paper} style={{ marginTop: 20 }}>
-          <Table aria-label="simple table">
-            <TableHead>
-              <TableRow>
-                <TableCell>Week</TableCell>
-                <TableCell>Weight Gain (kg)</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {data[selectedIndex].improvementLogs.map((log, i) => (
-                <TableRow key={i}>
-                  <TableCell>{log.weekNumber}</TableCell>
-                  <TableCell>{log.improvement}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      ) : (
-        <DialogContentText style={{ marginTop: 20, textAlign: 'center' }}>
-          No records found
-        </DialogContentText>
-      )
-    ) : (
-      <DialogContentText style={{ marginTop: 20, textAlign: 'center' }}>
-        No records found
-      </DialogContentText>
-    )}
+        <DialogTitle>Weekly Improvement Logs</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Improvement logs for {selectedIndex !== null && data[selectedIndex]?.patientName}
+          </DialogContentText>
 
-    {role !== 'Nutritionist' && (
-      <Grid container spacing={2} style={{ marginTop: 20 }}>
-        <Grid item xs={12}>
-          <TextField
-            fullWidth
-            label="Add New Weight (kg)"
-            type="text"  // Use 'text' to allow custom input handling
-            value={newImprovement}
-            onChange={(e) => {
-              const value = e.target.value;
-              // Only allow numbers and one decimal point
-              const regex = /^[0-9]*\.?[0-9]*$/;
-              if (regex.test(value)) {
-                setNewImprovement(value);
-              }
-            }}
-          />
-        </Grid>
-      </Grid>
-    )}
-  </DialogContent>
-  <DialogActions>
-    <Button onClick={handleCloseModal} color="primary">
-      Cancel
-    </Button>
-    {role !== 'Nutritionist' && (
-      <Button onClick={handleAddImprovement} color="primary">
-        Add Improvement
-      </Button>
-    )}
-  </DialogActions>
-</Dialog>
+          {selectedIndex !== null && data[selectedIndex]?.improvementLogs ? (
+            data[selectedIndex].improvementLogs.length > 0 ? (
+              <TableContainer component={Paper} style={{ marginTop: 20 }}>
+                <Table aria-label="simple table">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Week</TableCell>
+                      <TableCell>Weight Gain (kg)</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {data[selectedIndex].improvementLogs.map((log, i) => (
+                      <TableRow key={i}>
+                        <TableCell>{log.weekNumber}</TableCell>
+                        <TableCell>{log.improvement}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            ) : (
+              <DialogContentText style={{ marginTop: 20, textAlign: 'center' }}>
+                No records found
+              </DialogContentText>
+            )
+          ) : (
+            <DialogContentText style={{ marginTop: 20, textAlign: 'center' }}>
+              No records found
+            </DialogContentText>
+          )}
 
+          {role !== 'Nutritionist' && (
+            <Grid container spacing={2} style={{ marginTop: 20 }}>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Add New Weight (kg)"
+                  type="text"  // Use 'text' to allow custom input handling
+                  value={newImprovement}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    // Only allow numbers and one decimal point
+                    const regex = /^[0-9]*\.?[0-9]*$/;
+                    if (regex.test(value)) {
+                      setNewImprovement(value);
+                    }
+                  }}
+                />
+              </Grid>
+            </Grid>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseModal} color="primary">
+            Cancel
+          </Button>
+          {role !== 'Nutritionist' && (
+            <Button onClick={handleAddImprovement} color="primary">
+              Add Improvement
+            </Button>
+          )}
+        </DialogActions>
+      </Dialog>
     </div>
   );
 };
