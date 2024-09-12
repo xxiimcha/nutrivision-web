@@ -3,13 +3,14 @@ import {
   Box,
   Container,
   Typography,
-  Card,
-  CardContent,
   Grid,
   Button,
   IconButton,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
 } from '@mui/material';
-import { CheckCircle, ArrowBackIos, ArrowForwardIos } from '@mui/icons-material';
+import { ExpandMore, CheckCircle, ArrowBackIos, ArrowForwardIos } from '@mui/icons-material';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import moment from 'moment';
@@ -91,12 +92,18 @@ const MealPlan = () => {
 
       <Grid container spacing={3}>
         {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => (
-          <Grid item xs={12} sm={6} md={4} key={day}>
-            <Card sx={{ borderRadius: 4, boxShadow: 3 }}>
-              <CardContent>
-                <Typography variant="h6" gutterBottom sx={{ color: '#1565C0' }}>
+          <Grid item xs={12} key={day}>
+            <Accordion>
+              <AccordionSummary
+                expandIcon={<ExpandMore />}
+                aria-controls={`${day}-content`}
+                id={`${day}-header`}
+              >
+                <Typography variant="h6" sx={{ color: '#1565C0', fontWeight: 'bold' }}>
                   {day}
                 </Typography>
+              </AccordionSummary>
+              <AccordionDetails>
                 {
                   // Check if there are any approved meals for the day
                   ['breakfast', 'lunch', 'dinner'].some(mealType => mealPlan[day]?.[mealType]?.approved) ? (
@@ -131,8 +138,8 @@ const MealPlan = () => {
                     </Typography>
                   )
                 }
-              </CardContent>
-            </Card>
+              </AccordionDetails>
+            </Accordion>
           </Grid>
         ))}
       </Grid>

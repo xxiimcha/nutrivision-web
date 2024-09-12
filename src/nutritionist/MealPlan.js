@@ -14,12 +14,13 @@ import {
   Modal,
   TextField,
   Badge,
-  Card,
-  CardContent,
   Grid,
   IconButton,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
 } from '@mui/material';
-import { Edit, CheckCircle, Send, ArrowBackIos, ArrowForwardIos } from '@mui/icons-material';
+import { Edit, CheckCircle, Send, ArrowBackIos, ArrowForwardIos, ExpandMore } from '@mui/icons-material';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import moment from 'moment';
@@ -32,7 +33,6 @@ const MealPlan = () => {
   const [selectedDay, setSelectedDay] = useState('');
   const [selectedMealType, setSelectedMealType] = useState('');
   const [mealDetails, setMealDetails] = useState({ mainDish: '', drinks: '', vitamins: '', ingredients: '' });
-  const [proofFile, setProofFile] = useState(null);
   const navigate = useNavigate();
 
   const startOfWeek = moment(week).startOf('week').format('YYYY-MM-DD');
@@ -190,12 +190,18 @@ const MealPlan = () => {
 
       <Grid container spacing={3}>
         {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => (
-          <Grid item xs={12} sm={6} md={4} key={day}>
-            <Card sx={{ borderRadius: 4, boxShadow: 3 }}>
-              <CardContent>
-                <Typography variant="h6" gutterBottom sx={{ color: '#1565C0' }}>
+          <Grid item xs={12} key={day}>
+            <Accordion>
+              <AccordionSummary
+                expandIcon={<ExpandMore />}
+                aria-controls={`${day}-content`}
+                id={`${day}-header`}
+              >
+                <Typography variant="h6" sx={{ color: '#1565C0', fontWeight: 'bold' }}>
                   {day}
                 </Typography>
+              </AccordionSummary>
+              <AccordionDetails>
                 {['breakfast', 'lunch', 'dinner'].map((mealType) => (
                   <Box key={mealType} mb={3} sx={{ backgroundColor: '#E3F2FD', padding: 2, borderRadius: 2 }}>
                     <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: '#1565C0' }}>
@@ -252,8 +258,8 @@ const MealPlan = () => {
                     SEND MEAL PLAN
                   </Button>
                 )}
-              </CardContent>
-            </Card>
+              </AccordionDetails>
+            </Accordion>
           </Grid>
         ))}
       </Grid>
