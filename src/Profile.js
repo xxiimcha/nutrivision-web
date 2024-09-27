@@ -6,6 +6,8 @@ import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import { useParams } from 'react-router-dom';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { storage } from './firebase/firebaseConfig'; // Import your firebase config
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 
 const Profile = () => {
   const { userId } = useParams(); // Extract userId from the URL
@@ -169,34 +171,55 @@ const Profile = () => {
       setSelectedImage(e.target.files[0]);
     }
   };
-
+  
   const handleUploadPicture = async () => {
     if (!selectedImage) {
       toast.error('Please select an image to upload');
       return;
     }
-
-    const formData = new FormData();
-    formData.append('profilePicture', selectedImage);
-
-    try {
-      const response = await fetch(`http://localhost:5000/api/admins/${userId}/upload-profile-picture`, {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to upload profile picture');
+  
+    const storageRef = ref(storage, `profile-pictures/${userId}_${selectedImage.name}`);
+    const uploadTask = uploadBytesResumable(storageRef, selectedImage);
+  
+    uploadTask.on(
+      "state_changed",
+      (snapshot) => {
+        // You can show upload progress if needed
+        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+        console.log('Upload is ' + progress + '% done');
+      },
+      (error) => {
+        console.error('Error uploading profile picture:', error);
+        toast.error('Failed to upload profile picture');
+      },
+      () => {
+        // Handle successful uploads on complete
+        getDownloadURL(uploadTask.snapshot.ref).then(async (downloadURL) => {
+          try {
+            const response = await fetch(`http://localhost:5000/api/admins/${userId}/upload-profile-picture`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ profilePicture: downloadURL }), // Send the download URL to the backend
+            });
+  
+            if (!response.ok) {
+              throw new Error('Failed to update profile picture URL');
+            }
+  
+            const data = await response.json();
+            setUserData({ ...userData, profilePicture: data.profilePicture }); // Update the profile picture
+            toast.success('Profile picture updated successfully');
+          } catch (error) {
+            console.error('Error saving profile picture URL:', error);
+            toast.error('Failed to save profile picture URL');
+          }
+        });
       }
-
-      const data = await response.json();
-      setUserData({ ...userData, profilePicture: data.profilePicture }); // Update the profile picture
-      toast.success('Profile picture updated successfully');
-    } catch (error) {
-      console.error('Error uploading profile picture:', error);
-      toast.error('Failed to upload profile picture');
-    }
+    );
   };
+  
 
   const toggleShowCurrentPassword = () => setShowCurrentPassword(!showCurrentPassword);
   const toggleShowNewPassword = () => setShowNewPassword(!showNewPassword);
@@ -219,9 +242,9 @@ const Profile = () => {
       </Typography>
       
       <Box sx={{ position: 'relative', mt: 2 }}>
-        <Avatar
+      <Avatar
           alt="Profile Picture"
-          src={`http://localhost:5000${userData.profilePicture}` || "/default-avatar.png"} // Ensure this is correct
+          src={userData?.profilePicture || "/default-avatar.png"} // Ensure this loads the Firebase Storage URL
           sx={{ width: 100, height: 100 }}
         />
         <IconButton

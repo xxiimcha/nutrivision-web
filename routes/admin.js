@@ -67,7 +67,9 @@ router.post('/', async (req, res) => {
 });
 
 // Upload profile picture
-router.post('/:id/upload-profile-picture', upload.single('profilePicture'), async (req, res) => {
+router.post('/:id/upload-profile-picture', async (req, res) => {
+  const { profilePicture } = req.body; // Get the Firebase Storage URL from the request body
+
   try {
     const admin = await Admin.findById(req.params.id);
     if (!admin) {
@@ -76,14 +78,11 @@ router.post('/:id/upload-profile-picture', upload.single('profilePicture'), asyn
 
     // Delete the old profile picture if it exists
     if (admin.profilePicture) {
-      fs.unlink(path.join(__dirname, '..', admin.profilePicture), (err) => {
-        if (err) {
-          console.error('Error deleting old profile picture:', err);
-        }
-      });
+      // Note: Firebase Storage does not support direct deletion from your server.
+      // You'd need to manage it within your Firebase project if required.
     }
 
-    admin.profilePicture = `/uploads/${req.file.filename}`; // Save the file path to the database
+    admin.profilePicture = profilePicture; // Save the Firebase Storage URL to the database
     await admin.save();
 
     res.json({ profilePicture: admin.profilePicture });
