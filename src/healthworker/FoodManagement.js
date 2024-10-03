@@ -23,6 +23,7 @@ const FoodManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedKid, setSelectedKid] = useState(null); // For storing selected kid's info
   const [open, setOpen] = useState(false); // For handling modal open/close
+  const [filterType, setFilterType] = useState('Malnourished'); // Track current filter type
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -42,10 +43,10 @@ const FoodManagement = () => {
     setSearchTerm(event.target.value);
   };
 
-  // Filter kids based on their nutrition status and search term
+  // Filter kids based on their nutrition status (Malnourished/Obese) and search term
   const filteredKids = kids.filter(
     (kid) =>
-      (kid.nutritionStatus === 'Malnourished' || kid.nutritionStatus === 'Obese') &&
+      kid.nutritionStatus === filterType && // Apply filter type (Malnourished or Obese)
       kid.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -64,21 +65,31 @@ const FoodManagement = () => {
     setOpen(false);
   };
 
+  // Set filter to 'Malnourished'
+  const showMalnourished = () => {
+    setFilterType('Malnourished');
+  };
+
+  // Set filter to 'Obese'
+  const showObese = () => {
+    setFilterType('Obese');
+  };
+
   return (
     <Container>
       <Typography variant="h4" gutterBottom align="center">
         Weekly Meal Plan
       </Typography>
       <Box display="flex" justifyContent="center" mb={2}>
-        <Button variant="contained" color="primary" sx={{ mr: 2 }}>
+        <Button variant="contained" color="primary" sx={{ mr: 2 }} onClick={showMalnourished}>
           MALNOURISHED KIDS
         </Button>
-        <Button variant="contained" color="secondary">
+        <Button variant="contained" color="secondary" onClick={showObese}>
           OBESE KIDS
         </Button>
       </Box>
       <Typography variant="h6" gutterBottom>
-        Malnourished kids
+        {filterType} kids
       </Typography>
       <TextField
         variant="outlined"

@@ -3,11 +3,11 @@ import { Calendar as BigCalendar, momentLocalizer } from 'react-big-calendar';
 import moment from 'moment';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import {
-  Box, TextField, Button, Typography, Select, MenuItem, FormControl, InputLabel, Grid, Snackbar, Card, CardContent, CardActions, IconButton, Modal, Paper, Tabs, Tab
-} from '@mui/material';
+  Box, TextField, Button, Typography, MenuItem, FormControl, InputLabel, Grid, Snackbar, Card, CardContent, CardActions, IconButton, Modal, Paper, Tabs, Tab, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Select
+} from '@mui/material'; // <-- Ensure Select is imported here
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
-import DeleteIcon from '@mui/icons-material/Delete';
+import DeleteIcon from '@mui/icons-material/Delete'; // <-- Add this for DeleteIcon
 import EditIcon from '@mui/icons-material/Edit';
 import axios from 'axios';
 
@@ -25,11 +25,14 @@ const initialFormData = {
 function Calendar() {
   const [events, setEvents] = useState([]);
   const [showModal, setShowModal] = useState(false);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
   const [formData, setFormData] = useState(initialFormData);
   const [editingEvent, setEditingEvent] = useState(null);
+  const [eventToCancel, setEventToCancel] = useState(null); // For cancel confirmation
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [tabValue, setTabValue] = useState(0); // State for tab selection
+  const [snackbarMessage, setSnackbarMessage] = useState('');
 
   // Fetch events from the backend when the component mounts
   useEffect(() => {
@@ -45,13 +48,40 @@ function Calendar() {
           };
         });
         setEvents(fetchedEvents);
+        updateEventStatuses(fetchedEvents); // Automatically update status
       } catch (error) {
         console.error('Error fetching events:', error);
       }
     };
-    
+
     fetchEvents();
   }, []);
+
+  // Update event statuses (automatically mark completed if not cancelled and date has passed)
+  const updateEventStatuses = async (events) => {
+    const today = moment();
+    const updatedEvents = events.map(event => {
+      const eventDateTime = moment(`${event.date} ${event.time}`, 'YYYY-MM-DD HH:mm');
+      if (event.status === 'upcoming' && eventDateTime.isBefore(today)) {
+        return { ...event, status: 'completed' };
+      }
+      return event;
+    });
+
+    // Update the backend for events that are automatically marked as completed
+    const promises = updatedEvents.map(async (event) => {
+      if (event.status === 'completed' && event.status !== 'cancelled') {
+        try {
+          await axios.put(`http://localhost:5000/api/events/${event._id}`, event);
+        } catch (error) {
+          console.error('Error updating event status:', error);
+        }
+      }
+    });
+
+    await Promise.all(promises); // Wait for all updates to complete
+    setEvents(updatedEvents); // Update state
+  };
 
   // Handle tab change
   const handleTabChange = (event, newValue) => {
@@ -60,15 +90,14 @@ function Calendar() {
 
   // Filter events based on the current date
   const filterEvents = (type) => {
-    const today = moment().startOf('day'); // Current date without time
     if (type === 'upcoming') {
-      // Return events where the date is in the future
-      return events.filter(event => moment(event.start).isSameOrAfter(today));
+      // Return upcoming events
+      return events.filter(event => event.status === 'upcoming');
     } else if (type === 'completed') {
-      // Return events where the date has already passed
-      return events.filter(event => moment(event.start).isBefore(today));
+      // Return completed events
+      return events.filter(event => event.status === 'completed');
     } else {
-      // If type is "cancelled" or anything else
+      // Return cancelled events
       return events.filter(event => event.status === 'cancelled');
     }
   };
@@ -94,7 +123,7 @@ function Calendar() {
     setFormData({
       title: event.title,
       date: moment(event.start).format('YYYY-MM-DD'),
-      time: moment(event.start).format('HH:mm'),
+      time: event.time,
       location: event.location,
       recipient: event.recipient,
       status: event.status, // Include the status in the form data
@@ -141,6 +170,7 @@ function Calendar() {
         return event;
       });
       setEvents(updatedEvents);
+      setSnackbarMessage('Event updated successfully');
       setSnackbarOpen(true);
     } else {
       setEvents([...events, updatedEvent]);
@@ -151,28 +181,22 @@ function Calendar() {
     setShowModal(false);
   };
 
-  const deleteEventFromBackend = async (event) => {
-    try {
-      await axios.delete(`http://localhost:5000/api/events/${event._id}`);
-    } catch (error) {
-      console.error('Error deleting event:', error);
-    }
+  // Cancel event confirmation handler
+  const handleCancelEvent = (event) => {
+    setEventToCancel(event);
+    setShowCancelDialog(true); // Open the confirmation dialog
   };
-  
-  const handleCancelEvent = async (event) => {
-    const updatedEvent = { ...event, status: 'cancelled' };
-    setEvents(events.map(e => (e._id === event._id ? updatedEvent : e)));
-  
-    await saveEventToBackend(updatedEvent); // Save the cancelled event to the backend
-  };
-  
-  const handleDeleteEvent = async () => {
-    const updatedEvents = events.filter((event) => event !== editingEvent);
-    setEvents(updatedEvents);
 
-    await deleteEventFromBackend(editingEvent);
-    setFormData(initialFormData);
-    setShowModal(false);
+  // Confirm cancellation
+  const handleConfirmCancelEvent = async () => {
+    const updatedEvent = { ...eventToCancel, status: 'cancelled' };
+    setEvents(events.map(e => (e._id === eventToCancel._id ? updatedEvent : e)));
+
+    await saveEventToBackend(updatedEvent); // Save the cancelled event to the backend
+    setSnackbarMessage('Event cancelled successfully');
+    setSnackbarOpen(true);
+
+    setShowCancelDialog(false); // Close the confirmation dialog
   };
 
   const dayPropGetter = (date) => {
@@ -251,7 +275,7 @@ function Calendar() {
                 <IconButton color="primary" onClick={() => handleEditEvent(event)}>
                   <EditIcon />
                 </IconButton>
-                <IconButton color="secondary" onClick={() => handleDeleteEvent(event)}>
+                <IconButton color="secondary" onClick={() => handleCancelEvent(event)}>
                   <DeleteIcon />
                 </IconButton>
               </CardActions>
@@ -273,14 +297,6 @@ function Calendar() {
                   <strong>Recipient:</strong> {event.recipient}
                 </Typography>
               </CardContent>
-              <CardActions>
-                <IconButton color="primary" onClick={() => handleEditEvent(event)}>
-                  <EditIcon />
-                </IconButton>
-                <IconButton color="secondary" onClick={() => handleDeleteEvent(event)}>
-                  <DeleteIcon />
-                </IconButton>
-              </CardActions>
             </Card>
           ))}
           {tabValue === 2 && filterEvents('completed').map((event, index) => (
@@ -299,14 +315,6 @@ function Calendar() {
                   <strong>Recipient:</strong> {event.recipient}
                 </Typography>
               </CardContent>
-              <CardActions>
-                <IconButton color="primary" onClick={() => handleEditEvent(event)}>
-                  <EditIcon />
-                </IconButton>
-                <IconButton color="secondary" onClick={() => handleDeleteEvent(event)}>
-                  <DeleteIcon />
-                </IconButton>
-              </CardActions>
             </Card>
           ))}
         </Paper>
@@ -392,43 +400,52 @@ function Calendar() {
                 {editingEvent ? 'Save' : 'Add'}
               </Button>
             </Grid>
-            {editingEvent && (
-              <>
-                <Grid item xs={6}>
-                  <Button
-                    variant="contained"
-                    color="secondary"
-                    onClick={handleDeleteEvent}
-                    fullWidth
-                    style={{ marginTop: '20px' }}
-                  >
-                    Delete
-                  </Button>
-                </Grid>
-                {editingEvent.status === 'upcoming' && (
-                  <Grid item xs={12}>
-                    <Button
-                      variant="contained"
-                      color="error"
-                      onClick={() => handleCancelEvent(editingEvent)}
-                      fullWidth
-                      style={{ marginTop: '10px' }}
-                    >
-                      Cancel Event
-                    </Button>
-                  </Grid>
-                )}
-              </>
+            {editingEvent && editingEvent.status === 'upcoming' && (
+              <Grid item xs={12}>
+                <Button
+                  variant="contained"
+                  color="error"
+                  onClick={() => handleCancelEvent(editingEvent)}
+                  fullWidth
+                  style={{ marginTop: '10px' }}
+                >
+                  Cancel Event
+                </Button>
+              </Grid>
             )}
           </Grid>
         </Box>
       </Modal>
 
+      {/* Confirmation Dialog for Canceling Event */}
+      <Dialog
+        open={showCancelDialog}
+        onClose={() => setShowCancelDialog(false)}
+        aria-labelledby="alert-dialog-title"
+        aria-describedby="alert-dialog-description"
+      >
+        <DialogTitle id="alert-dialog-title">{"Cancel Event Confirmation"}</DialogTitle>
+        <DialogContent>
+          <DialogContentText id="alert-dialog-description">
+            Are you sure you want to cancel the event "<strong>{eventToCancel?.title}</strong>" scheduled on{" "}
+            {moment(eventToCancel?.date).format('MMMM Do YYYY')} at {moment(eventToCancel?.time, 'HH:mm').format('h:mm A')}?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowCancelDialog(false)} color="primary">
+            No
+          </Button>
+          <Button onClick={handleConfirmCancelEvent} color="error" autoFocus>
+            Yes, Cancel
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       <Snackbar
         open={snackbarOpen}
         autoHideDuration={6000}
         onClose={() => setSnackbarOpen(false)}
-        message="Changes saved"
+        message={snackbarMessage}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
         style={{ position: 'fixed', bottom: '20px', left: '20px' }}
       />

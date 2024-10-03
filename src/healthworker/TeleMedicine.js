@@ -196,12 +196,15 @@ const Telemed = () => {
                 }}
               >
                 <ListItemAvatar>
-                  <Avatar>{user.firstName.charAt(0).toUpperCase()}</Avatar>
+                  <Avatar>
+                    {user.firstName ? user.firstName.charAt(0).toUpperCase() : 'U'}
+                  </Avatar>
                 </ListItemAvatar>
-                <ListItemText 
-                  primary={`${user.firstName || ''} ${user.lastName || ''}`.trim()} 
-                  secondary="Last message..." 
+                <ListItemText
+                  primary={`${user.firstName || ''} ${user.lastName || ''}`.trim()}
+                  secondary="Last message..."
                 />
+
               </ListItem>
             ))}
           </List>
