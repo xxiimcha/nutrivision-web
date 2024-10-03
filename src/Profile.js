@@ -32,6 +32,9 @@ const Profile = () => {
   const [selectedImage, setSelectedImage] = useState(null); // State for handling image selection
   const [otpModalOpen, setOtpModalOpen] = useState(false); // State for OTP modal
 
+  // New state for form errors
+  const [errors, setErrors] = useState({});
+
   useEffect(() => {
     // Fetch the admin data using the userId
     const fetchUserData = async () => {
@@ -58,7 +61,44 @@ const Profile = () => {
     fetchUserData();
   }, [userId]);
 
+  const validateForm = () => {
+    let validationErrors = {};
+    if (!firstName.trim()) {
+      validationErrors.firstName = 'First Name is required';
+    }
+    if (!lastName.trim()) {
+      validationErrors.lastName = 'Last Name is required';
+    }
+    if (!email.trim()) {
+      validationErrors.email = 'Email is required';
+    } else if (!/\S+@\S+\.\S+/.test(email)) {
+      validationErrors.email = 'Email is invalid';
+    }
+    return validationErrors;
+  };
+
+  const validatePasswordChange = () => {
+    let validationErrors = {};
+    if (!currentPassword) {
+      validationErrors.currentPassword = 'Current Password is required';
+    }
+    if (!newPassword) {
+      validationErrors.newPassword = 'New Password is required';
+    }
+    if (newPassword !== confirmPassword) {
+      validationErrors.confirmPassword = 'Passwords do not match';
+    }
+    return validationErrors;
+  };
+
   const handleUpdatePersonalInfo = async () => {
+    const validationErrors = validateForm();
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      return;
+    }
+    setErrors({});
+
     if (email !== userData.email) {
       // If email is changed, send OTP
       try {
@@ -136,10 +176,12 @@ const Profile = () => {
   };
 
   const handleUpdatePassword = async () => {
-    if (newPassword !== confirmPassword) {
-      toast.error('Passwords do not match');
+    const validationErrors = validatePasswordChange();
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
       return;
     }
+    setErrors({});
 
     try {
       const response = await fetch(`http://localhost:5000/api/admins/${userId}/change-password`, {
@@ -155,7 +197,7 @@ const Profile = () => {
       }
 
       toast.success('Password updated successfully'); // Show success toast
-      
+
       // Clear the password fields after successful update
       setCurrentPassword('');
       setNewPassword('');
@@ -171,16 +213,16 @@ const Profile = () => {
       setSelectedImage(e.target.files[0]);
     }
   };
-  
+
   const handleUploadPicture = async () => {
     if (!selectedImage) {
       toast.error('Please select an image to upload');
       return;
     }
-  
+
     const storageRef = ref(storage, `profile-pictures/${userId}_${selectedImage.name}`);
     const uploadTask = uploadBytesResumable(storageRef, selectedImage);
-  
+
     uploadTask.on(
       "state_changed",
       (snapshot) => {
@@ -203,11 +245,11 @@ const Profile = () => {
               },
               body: JSON.stringify({ profilePicture: downloadURL }), // Send the download URL to the backend
             });
-  
+
             if (!response.ok) {
               throw new Error('Failed to update profile picture URL');
             }
-  
+
             const data = await response.json();
             setUserData({ ...userData, profilePicture: data.profilePicture }); // Update the profile picture
             toast.success('Profile picture updated successfully');
@@ -219,7 +261,6 @@ const Profile = () => {
       }
     );
   };
-  
 
   const toggleShowCurrentPassword = () => setShowCurrentPassword(!showCurrentPassword);
   const toggleShowNewPassword = () => setShowNewPassword(!showNewPassword);
@@ -242,7 +283,7 @@ const Profile = () => {
       </Typography>
       
       <Box sx={{ position: 'relative', mt: 2 }}>
-      <Avatar
+        <Avatar
           alt="Profile Picture"
           src={userData?.profilePicture || "/default-avatar.png"} // Ensure this loads the Firebase Storage URL
           sx={{ width: 100, height: 100 }}
@@ -299,6 +340,8 @@ const Profile = () => {
           margin="normal"
           value={firstName}
           onChange={(e) => setFirstName(e.target.value)}
+          error={Boolean(errors.firstName)}
+          helperText={errors.firstName}
         />
         <TextField
           fullWidth
@@ -307,6 +350,8 @@ const Profile = () => {
           margin="normal"
           value={lastName}
           onChange={(e) => setLastName(e.target.value)}
+          error={Boolean(errors.lastName)}
+          helperText={errors.lastName}
         />
         <TextField
           fullWidth
@@ -315,6 +360,8 @@ const Profile = () => {
           margin="normal"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
+          error={Boolean(errors.email)}
+          helperText={errors.email}
         />
         <Button
           variant="contained"
@@ -369,6 +416,8 @@ const Profile = () => {
           type={showCurrentPassword ? 'text' : 'password'}
           value={currentPassword}
           onChange={(e) => setCurrentPassword(e.target.value)}
+          error={Boolean(errors.currentPassword)}
+          helperText={errors.currentPassword}
           InputProps={{
             endAdornment: (
               <InputAdornment position="end">
@@ -387,6 +436,8 @@ const Profile = () => {
           type={showNewPassword ? 'text' : 'password'}
           value={newPassword}
           onChange={(e) => setNewPassword(e.target.value)}
+          error={Boolean(errors.newPassword)}
+          helperText={errors.newPassword}
           InputProps={{
             endAdornment: (
               <InputAdornment position="end">
@@ -405,6 +456,8 @@ const Profile = () => {
           type={showConfirmPassword ? 'text' : 'password'}
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}
+          error={Boolean(errors.confirmPassword)}
+          helperText={errors.confirmPassword}
           InputProps={{
             endAdornment: (
               <InputAdornment position="end">

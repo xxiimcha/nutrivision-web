@@ -20,20 +20,20 @@ import Button from '@mui/material/Button';
 import Badge from '@mui/material/Badge';
 import MailIcon from '@mui/icons-material/Mail';
 import NotificationsIcon from '@mui/icons-material/Notifications';
+import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import SettingsIcon from '@mui/icons-material/Settings';
 import MenuIcon from '@mui/icons-material/Menu';
 import ExpandLess from '@mui/icons-material/ExpandLess';
 import ExpandMore from '@mui/icons-material/ExpandMore';
 import Collapse from '@mui/material/Collapse';
-import AssignmentIcon from '@mui/icons-material/Assignment';
-import AssessmentIcon from '@mui/icons-material/Assessment';
-import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import { styled } from '@mui/material/styles';
 import { UserContext } from './context/UserContext';
 import logo from './images/logo.png';
 import axios from 'axios';
+import { getDownloadURL, ref } from 'firebase/storage';
+import { storage } from './firebase/firebaseConfig'; // Import Firebase storage config
 
 const drawerWidth = 240;
 
@@ -53,7 +53,7 @@ const CustomListItem = styled(ListItem)(({ theme }) => ({
 
 function DashboardLayout(props) {
   const { window } = props;
-  const { role, name, email, userId, profilePicture } = useContext(UserContext);
+  const { role, name, email, userId, profilePicture } = useContext(UserContext); // Profile picture comes from context
   const navigate = useNavigate();
 
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -62,7 +62,27 @@ function DashboardLayout(props) {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [anchorEl, setAnchorEl] = useState(null);
+  const [profilePicUrl, setProfilePicUrl] = useState(null); // State to store the profile picture URL
 
+  // Fetch profile picture from Firebase
+  useEffect(() => {
+    console.log('Profile picture from context:', profilePicture); // Log the value of profilePicture
+
+    const fetchProfilePicture = async () => {
+      if (profilePicture) {
+        const profilePicRef = ref(storage, profilePicture);
+        try {
+          const url = await getDownloadURL(profilePicRef);
+          setProfilePicUrl(url);
+        } catch (error) {
+          console.error('Error fetching profile picture:', error);
+        }
+      }
+    };
+    fetchProfilePicture();
+  }, [profilePicture]);
+
+  // Fetch notifications
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
@@ -77,13 +97,16 @@ function DashboardLayout(props) {
     fetchNotifications();
   }, [userId]);
 
+  // Handle Drawer toggle for mobile view
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
   };
 
+  // Handle logout, clear localStorage, and navigate to login
   const handleLogout = () => {
     console.log('Logout clicked');
-    // Add logout logic here
+    localStorage.clear();
+    navigate('/login');
   };
 
   const toggleAccountsDropdown = () => {
@@ -94,6 +117,7 @@ function DashboardLayout(props) {
     setOpenStatus(!openStatus);
   };
 
+  // Handle notifications click
   const handleNotificationClick = (event) => {
     setAnchorEl(event.currentTarget);
   };
@@ -120,19 +144,19 @@ function DashboardLayout(props) {
     <div>
       <Toolbar />
       <Box
-        sx={{ 
-          display: 'flex', 
-          flexDirection: 'column', 
-          alignItems: 'center', 
-          justifyContent: 'center', 
-          p: 2, 
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          p: 2,
           marginTop: '-70px',
-          textAlign: 'center' 
+          textAlign: 'center'
         }}
       >
         <Link to={`/dashboard/profile/${userId}`} style={{ textDecoration: 'none', color: 'inherit' }}>
           <img
-            src={profilePicture || '/default-avatar.png'}
+            src={profilePicUrl || '/default-avatar.png'}
             alt="Profile"
             style={{ width: '60px', height: '60px', borderRadius: '50%', marginBottom: '10px' }}
           />
@@ -182,11 +206,9 @@ function DashboardLayout(props) {
         <Collapse in={openStatus} timeout="auto" unmountOnExit>
           <List component="div" disablePadding>
             <CustomListItem sx={{ pl: 4 }} button component={Link} to="/dashboard/records-management">
-              <ListItemIcon><AssignmentIcon /></ListItemIcon> 
               <ListItemText primary="Records" />
             </CustomListItem>
             <CustomListItem sx={{ pl: 4 }} button component={Link} to="/dashboard/monitoring">
-              <ListItemIcon><AssessmentIcon /></ListItemIcon> 
               <ListItemText primary="Monitoring" />
             </CustomListItem>
           </List>

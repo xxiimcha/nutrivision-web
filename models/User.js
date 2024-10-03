@@ -23,6 +23,12 @@ const UserSchema = new mongoose.Schema({
     type: Date,
     required: false,
   },
+  status: {
+    type: String,
+    enum: ['active', 'inactive'],
+    default: 'active',
+    required: true,
+  },
 });
 
 const User = mongoose.model('User', UserSchema);

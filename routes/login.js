@@ -18,6 +18,7 @@ router.post('/', async (req, res) => {
   if (email === superAdminEmail) {
     if (password === superAdminPassword) {
       // No OTP required for super admin, directly login
+      console.log(`Super Admin logged in with email: ${email}`);
       return res.status(200).send({ email, role: 'Super Admin', otpRequired: false, _id: 'super-admin-id', name: 'Super Admin' });
     } else {
       return res.status(401).send({ message: 'Invalid credentials' });
@@ -41,6 +42,7 @@ router.post('/', async (req, res) => {
         // Send OTP to admin's email
         await sendOtpToEmail(admin.email, otp);
 
+        console.log(`Admin logged in with email: ${email}`);
         console.log(`OTP generated and sent to ${admin.email}: ${otp}`);
 
         const fullName = `${admin.firstName} ${admin.lastName}`;
@@ -97,6 +99,7 @@ router.post('/verify-otp', async (req, res) => {
     return res.status(500).send({ message: 'Internal server error' });
   }
 });
+
 // Forgot password route
 router.post('/forgot-password', async (req, res) => {
   const { email } = req.body;
@@ -152,6 +155,32 @@ router.post('/reset-password', async (req, res) => {
   } catch (error) {
     console.error('Error resetting password:', error);
     res.status(500).send({ message: 'Internal server error' });
+  }
+});
+
+// Verify password route
+router.post('/verify-password', async (req, res) => {
+  const { email, password } = req.body;
+
+  // Check for super admin credentials
+  if (email === superAdminEmail) {
+    if (password === superAdminPassword) {
+      return res.status(200).send({ success: true, role: 'Super Admin' });
+    } else {
+      return res.status(401).send({ success: false, message: 'Invalid Super Admin credentials' });
+    }
+  }
+
+  try {
+    const admin = await Admin.findOne({ email });
+    if (admin && password === admin.password) { // Ideally use bcrypt for password comparison
+      return res.status(200).send({ success: true });
+    } else {
+      return res.status(401).send({ success: false, message: 'Invalid password' });
+    }
+  } catch (error) {
+    console.error('Error during password verification:', error);
+    return res.status(500).send({ success: false, message: 'Internal server error' });
   }
 });
 

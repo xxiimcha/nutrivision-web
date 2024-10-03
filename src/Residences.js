@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import {
   Table,
   TableBody,
@@ -18,132 +19,98 @@ import {
   CardContent,
   Typography,
   InputAdornment,
-  IconButton,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel
+  CircularProgress,
+  IconButton
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
 
-const initialResidenceAccounts = [
-  { id: 1, name: 'John Doe', houseNumber: '123', street: 'Main St', phone: '09123456789' },
-  { id: 2, name: 'Jane Smith', houseNumber: '456', street: 'Oak Ave', phone: '09556789012' },
-  { id: 3, name: 'Michael Johnson', houseNumber: '789', street: 'Pine Rd', phone: '09876543210' },
-  // Add more residence accounts as needed
-];
+function Residences({ loggedInUser }) {
+  // Log to verify if loggedInUser is passed correctly
+  console.log('Logged in user:', loggedInUser);
 
-const addressOptions = [
-  { zone: 'Zone 1', streets: ['Kalayaano', 'Santol', 'Half Acacia', 'Half Narra'] },
-  { zone: 'Zone 2', streets: ['Half Acacia', 'Molave'] },
-  { zone: 'Zone 3', streets: ['Ilang-ilang', 'Jasmin', 'Camia', 'Guiho', 'Lower Guiho', 'Half Sampaguita', 'Half Acacia'] },
-  { zone: 'Zone 4', streets: ['Manga', 'Chico', 'Kamias', 'Bayabas', 'Half Banaba', 'Half Sampaguita'] },
-  { zone: 'Zone 5', streets: ['Half manga', 'Half Tangile', 'Half Ipil', 'Half Acacia', 'Half Banaba'] },
-  { zone: 'Zone 6', streets: ['Half Narra', 'Half Tangile', 'Mabolo'] },
-  { zone: 'Zone 7', streets: ['Bliss'] },
-  { zone: 'Zone 8', streets: ['Macda'] }
-];
-
-function Residences() {
-  const [residenceAccounts, setResidenceAccounts] = useState(initialResidenceAccounts);
+  const [residenceAccounts, setResidenceAccounts] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [open, setOpen] = useState(false);
-  const [editMode, setEditMode] = useState(false);
-  const [currentUserId, setCurrentUserId] = useState(null);
-  const [newUser, setNewUser] = useState({ id: '', name: '', houseNumber: '', street: '', phone: '09' });
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [userToDelete, setUserToDelete] = useState(null);
-  const [duplicateError, setDuplicateError] = useState('');
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [password, setPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [loading, setLoading] = useState(false);
+  
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const response = await axios.get('http://localhost:5000/api/users');
+        const users = response.data.map((user) => ({
+          ...user,
+          status: user.status || 'active', 
+        }));
+        setResidenceAccounts(users);
+      } catch (error) {
+        console.error('Error fetching users:', error);
+      }
+    };
+    fetchUsers();
+  }, []);
 
-  const handleClickOpen = () => {
-    setOpen(true);
+  const handleStatusChange = (user) => {
+    setSelectedUser(user);
+    setPassword('');
+    setPasswordDialogOpen(true);
   };
 
-  const handleClose = () => {
-    setOpen(false);
-    setEditMode(false);
-    setNewUser({ id: '', name: '', houseNumber: '', street: '', phone: '09' });
-    setDuplicateError('');
+  const handlePasswordDialogClose = () => {
+    setPasswordDialogOpen(false);
+    setSelectedUser(null);
+    setPasswordError('');
   };
 
-  const handleDeleteDialogClose = () => {
-    setDeleteDialogOpen(false);
-    setUserToDelete(null);
-  };
+  const handlePasswordSubmit = async () => {
+    setLoading(true);
+    try {
+      console.log('Attempting to verify password...');
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setNewUser((prevUser) => ({
-      ...prevUser,
-      [name]: value,
-      address: name === 'houseNumber' || name === 'street' ? `${newUser.houseNumber} ${newUser.street}` : prevUser.address,
-    }));
-  };
+      const response = await axios.post('http://localhost:5000/api/login/verify-password', {
+        email: loggedInUser.email,  // Use the logged-in user's email
+        password,
+      });
 
-  const validatePhoneNumber = (phone) => {
-    return /^09\d{9}$/.test(phone);
-  };
+      console.log('Password verification response:', response.data);
 
-  const handleAddUser = () => {
-    if (!validatePhoneNumber(newUser.phone)) {
-      setDuplicateError('Phone number must be exactly 11 digits and start with "09".');
-      return;
+      if (response.data.success) {
+        console.log('Password verified, updating user status...');
+
+        const updatedStatus = selectedUser.status === 'active' ? 'inactive' : 'active';
+        
+        const updateResponse = await axios.put(`http://localhost:5000/api/users/${selectedUser._id}/status`, {
+          status: updatedStatus,
+        });
+
+        console.log('Status update response:', updateResponse.data);
+
+        const updatedAccounts = residenceAccounts.map((account) =>
+          account._id === selectedUser._id
+            ? { ...account, status: updatedStatus }
+            : account
+        );
+        setResidenceAccounts(updatedAccounts);
+        handlePasswordDialogClose();
+      } else {
+        setPasswordError('Incorrect password. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error verifying password or updating status:', error);
+      setPasswordError('Error verifying password or updating status.');
+    } finally {
+      setLoading(false);
     }
-    if (residenceAccounts.some(account => account.name.toLowerCase() === newUser.name.toLowerCase())) {
-      setDuplicateError('Name already exists.');
-      return;
-    }
-    setResidenceAccounts((prevAccounts) => [
-      ...prevAccounts,
-      { ...newUser, id: prevAccounts.length + 1 }
-    ]);
-    handleClose();
-  };
-
-  const handleEditUser = () => {
-    if (residenceAccounts.some(account => account.name.toLowerCase() === newUser.name.toLowerCase() && account.id !== currentUserId)) {
-      setDuplicateError('Name already exists.');
-      return;
-    }
-    if (residenceAccounts.some(account => account.phone === newUser.phone && account.id !== currentUserId)) {
-      setDuplicateError('Phone number already exists.');
-      return;
-    }
-    setResidenceAccounts((prevAccounts) =>
-      prevAccounts.map((account) =>
-        account.id === currentUserId ? { ...account, ...newUser } : account
-      )
-    );
-    handleClose();
-  };
-
-  const handleDeleteUser = () => {
-    setResidenceAccounts((prevAccounts) =>
-      prevAccounts.filter((account) => account.id !== userToDelete.id)
-    );
-    handleDeleteDialogClose();
   };
 
   const handleSearchChange = (e) => {
     setSearchQuery(e.target.value);
   };
 
-  const handleEditClick = (account) => {
-    setCurrentUserId(account.id);
-    setNewUser({ name: account.name, houseNumber: account.houseNumber, street: account.street, phone: account.phone });
-    setEditMode(true);
-    setOpen(true);
-  };
-
-  const handleDeleteClick = (account) => {
-    setUserToDelete(account);
-    setDeleteDialogOpen(true);
-  };
-
   const filteredAccounts = residenceAccounts.filter((account) =>
-    account.name.toLowerCase().includes(searchQuery.toLowerCase())
+    `${account.firstName} ${account.lastName}`.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -167,41 +134,41 @@ function Residences() {
             ),
           }}
         />
-        <Button variant="contained" color="primary" onClick={handleClickOpen}>
-          Add User
-        </Button>
         <TableContainer component={Paper} sx={{ marginTop: 2 }}>
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell>ID</TableCell>
-                <TableCell>Name</TableCell>
-                <TableCell>Address</TableCell>
+                <TableCell>No.</TableCell>
+                <TableCell>First Name</TableCell>
+                <TableCell>Last Name</TableCell>
                 <TableCell>Phone</TableCell>
+                <TableCell>Status</TableCell>
                 <TableCell>Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {filteredAccounts.length > 0 ? (
-                filteredAccounts.map((account) => (
-                  <TableRow key={account.id}>
-                    <TableCell>{account.id}</TableCell>
-                    <TableCell>{account.name}</TableCell>
-                    <TableCell>{`${account.houseNumber} ${account.street}`}</TableCell>
+                filteredAccounts.map((account, index) => (
+                  <TableRow key={index}>
+                    <TableCell>{index + 1}</TableCell> 
+                    <TableCell>{account.firstName}</TableCell>
+                    <TableCell>{account.lastName}</TableCell>
                     <TableCell>{account.phone}</TableCell>
+                    <TableCell>{account.status}</TableCell>
                     <TableCell>
-                      <IconButton onClick={() => handleEditClick(account)}>
-                        <EditIcon />
-                      </IconButton>
-                      <IconButton onClick={() => handleDeleteClick(account)}>
-                        <DeleteIcon />
-                      </IconButton>
+                      <Button
+                        variant="contained"
+                        color={account.status === 'active' ? 'secondary' : 'primary'}
+                        onClick={() => handleStatusChange(account)}
+                      >
+                        {account.status === 'active' ? 'Deactivate' : 'Activate'}
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={5} align="center">
+                  <TableCell colSpan={6} align="center">
                     No matching results found.
                   </TableCell>
                 </TableRow>
@@ -210,87 +177,30 @@ function Residences() {
           </Table>
         </TableContainer>
 
-        <Dialog open={open} onClose={handleClose}>
-          <DialogTitle>{editMode ? 'Edit User' : 'Add New User'}</DialogTitle>
+        <Dialog open={passwordDialogOpen} onClose={handlePasswordDialogClose}>
+          <DialogTitle>Password Confirmation</DialogTitle>
           <DialogContent>
             <DialogContentText>
-              {editMode ? 'Edit the details of the residence account.' : 'To add a new residence account, please fill out the form below.'}
+              Please enter your password to confirm changing the user's status.
             </DialogContentText>
             <TextField
               autoFocus
               margin="dense"
-              name="name"
-              label="Name"
-              type="text"
+              label="Password"
+              type="password"
               fullWidth
-              value={newUser.name}
-              onChange={handleChange}
-              error={!!duplicateError}
-              helperText={duplicateError}
-            />
-            <TextField
-              margin="dense"
-              name="houseNumber"
-              label="House Number"
-              type="text"
-              fullWidth
-              value={newUser.houseNumber}
-              onChange={handleChange}
-            />
-            <FormControl fullWidth margin="dense">
-              <InputLabel>Street</InputLabel>
-              <Select
-                name="street"
-                value={newUser.street}
-                onChange={handleChange}
-              >
-                {addressOptions.map((zone, index) => (
-                  <optgroup key={index} label={zone.zone}>
-                    {zone.streets.map((street, idx) => (
-                      <MenuItem key={idx} value={street}>
-                        {street}
-                      </MenuItem>
-                    ))}
-                  </optgroup>
-                ))}
-              </Select>
-            </FormControl>
-            <TextField
-              margin="dense"
-              name="phone"
-              label="Phone"
-              type="text"
-              fullWidth
-              value={newUser.phone}
-              onChange={handleChange}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              error={!!passwordError}
+              helperText={passwordError}
             />
           </DialogContent>
           <DialogActions>
-            <Button onClick={handleClose} color="primary">
+            <Button onClick={handlePasswordDialogClose} color="primary">
               Cancel
             </Button>
-            <Button onClick={editMode ? handleEditUser : handleAddUser} color="primary">
-              {editMode ? 'Save Changes' : 'Add User'}
-            </Button>
-          </DialogActions>
-        </Dialog>
-
-        <Dialog
-          open={deleteDialogOpen}
-          onClose={handleDeleteDialogClose}
-        >
-          <DialogTitle>Delete User</DialogTitle>
-          <DialogContent>
-            <DialogContentText>
-              Are you sure you want to delete this user? This action cannot be undone.
-            </DialogContentText>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={handleDeleteDialogClose} color="primary">
-              Cancel
-            </Button>
-            <Button onClick={handleDeleteUser} color="secondary">
-              Delete
+            <Button onClick={handlePasswordSubmit} color="primary" disabled={loading}>
+              {loading ? <CircularProgress size={24} /> : 'Confirm'}
             </Button>
           </DialogActions>
         </Dialog>

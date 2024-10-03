@@ -3,10 +3,17 @@ const Event = require('../models/Event');
 
 const router = express.Router();
 
-// Get all events
+// Get all events, optionally filtered by status
 router.get('/', async (req, res) => {
+  const { status } = req.query; // Allow filtering by status
+
   try {
-    const events = await Event.find();
+    let query = {};
+    if (status) {
+      query.status = status;
+    }
+
+    const events = await Event.find(query);
     res.status(200).json(events);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching events', error });
@@ -15,7 +22,7 @@ router.get('/', async (req, res) => {
 
 // Create a new event
 router.post('/', async (req, res) => {
-  const { title, location, date, time, recipient } = req.body;
+  const { title, location, date, time, recipient, status } = req.body;
 
   try {
     const newEvent = new Event({
@@ -23,7 +30,8 @@ router.post('/', async (req, res) => {
       location,
       date,
       time,
-      recipient
+      recipient,
+      status: status || 'upcoming' // Default to 'upcoming' if status is not provided
     });
 
     await newEvent.save();
@@ -33,15 +41,15 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Update an event
+// Update an event, including status
 router.put('/:id', async (req, res) => {
   const { id } = req.params;
-  const { title, location, date, time, recipient } = req.body;
+  const { title, location, date, time, recipient, status } = req.body;
 
   try {
     const updatedEvent = await Event.findByIdAndUpdate(
       id,
-      { title, location, date, time, recipient },
+      { title, location, date, time, recipient, status }, // Update status as well
       { new: true }
     );
 

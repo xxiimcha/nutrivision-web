@@ -3,7 +3,7 @@ import { Calendar as BigCalendar, momentLocalizer } from 'react-big-calendar';
 import moment from 'moment';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import {
-  Box, TextField, Button, Typography, Select, MenuItem, FormControl, InputLabel, Grid, Snackbar, Card, CardContent, CardActions, IconButton, Modal, Paper
+  Box, TextField, Button, Typography, Select, MenuItem, FormControl, InputLabel, Grid, Snackbar, Card, CardContent, CardActions, IconButton, Modal, Paper, Tabs, Tab
 } from '@mui/material';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
@@ -19,6 +19,7 @@ const initialFormData = {
   time: '',
   location: '',
   recipient: 'all',
+  status: 'upcoming', // Default status
 };
 
 function Calendar() {
@@ -28,25 +29,49 @@ function Calendar() {
   const [formData, setFormData] = useState(initialFormData);
   const [editingEvent, setEditingEvent] = useState(null);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [tabValue, setTabValue] = useState(0); // State for tab selection
 
   // Fetch events from the backend when the component mounts
   useEffect(() => {
     const fetchEvents = async () => {
       try {
         const response = await axios.get('http://localhost:5000/api/events');
-        const fetchedEvents = response.data.map(event => ({
-          ...event,
-          start: new Date(event.start),
-          end: new Date(event.end),
-        }));
+        const fetchedEvents = response.data.map(event => {
+          const startDate = moment(event.date, 'YYYY-MM-DD').toDate(); // Only parse the date part
+          return {
+            ...event,
+            start: startDate, // Use date without time
+            end: startDate, // If end date is the same day, else adjust
+          };
+        });
         setEvents(fetchedEvents);
       } catch (error) {
         console.error('Error fetching events:', error);
       }
     };
-
+    
     fetchEvents();
   }, []);
+
+  // Handle tab change
+  const handleTabChange = (event, newValue) => {
+    setTabValue(newValue);
+  };
+
+  // Filter events based on the current date
+  const filterEvents = (type) => {
+    const today = moment().startOf('day'); // Current date without time
+    if (type === 'upcoming') {
+      // Return events where the date is in the future
+      return events.filter(event => moment(event.start).isSameOrAfter(today));
+    } else if (type === 'completed') {
+      // Return events where the date has already passed
+      return events.filter(event => moment(event.start).isBefore(today));
+    } else {
+      // If type is "cancelled" or anything else
+      return events.filter(event => event.status === 'cancelled');
+    }
+  };
 
   const handleDateSelect = (e) => {
     const today = moment().startOf('day');
@@ -72,6 +97,7 @@ function Calendar() {
       time: moment(event.start).format('HH:mm'),
       location: event.location,
       recipient: event.recipient,
+      status: event.status, // Include the status in the form data
     });
   };
 
@@ -104,6 +130,7 @@ function Calendar() {
       time: formData.time,
       location: formData.location,
       recipient: formData.recipient,
+      status: formData.status, // Include the status
     };
 
     if (editingEvent) {
@@ -131,7 +158,14 @@ function Calendar() {
       console.error('Error deleting event:', error);
     }
   };
-
+  
+  const handleCancelEvent = async (event) => {
+    const updatedEvent = { ...event, status: 'cancelled' };
+    setEvents(events.map(e => (e._id === event._id ? updatedEvent : e)));
+  
+    await saveEventToBackend(updatedEvent); // Save the cancelled event to the backend
+  };
+  
   const handleDeleteEvent = async () => {
     const updatedEvents = events.filter((event) => event !== editingEvent);
     setEvents(updatedEvents);
@@ -184,15 +218,79 @@ function Calendar() {
         <Typography variant="h5" gutterBottom>
           Event List
         </Typography>
+
+        {/* Tabs for Upcoming, Cancelled, and Completed */}
+        <Tabs value={tabValue} onChange={handleTabChange} centered>
+          <Tab label="Upcoming" />
+          <Tab label="Cancelled" />
+          <Tab label="Completed" />
+        </Tabs>
+
         <Paper elevation={3} style={{ padding: '20px', height: '600px', overflowY: 'auto', backgroundColor: '#f5f5f5' }}>
-          {events.map((event, index) => (
+          {tabValue === 0 && filterEvents('upcoming').map((event, index) => (
             <Card key={index} sx={{ marginBottom: 2 }}>
               <CardContent>
                 <Typography variant="h6" component="div">
                   {event.title}
                 </Typography>
                 <Typography sx={{ mb: 1.5 }} color="text.secondary">
-                  {moment(event.start).format('MMMM Do YYYY, h:mm A')}
+                  {/* Format only the date part */}
+                  {moment(event.start).format('MMMM Do YYYY')}
+                </Typography>
+                <Typography variant="body2">
+                  <strong>Location:</strong> {event.location}
+                </Typography>
+                <Typography variant="body2">
+                  <strong>Recipient:</strong> {event.recipient}
+                </Typography>
+                <Typography variant="body2">
+                  <strong>Status:</strong> {event.status}
+                </Typography>
+              </CardContent>
+              <CardActions>
+                <IconButton color="primary" onClick={() => handleEditEvent(event)}>
+                  <EditIcon />
+                </IconButton>
+                <IconButton color="secondary" onClick={() => handleDeleteEvent(event)}>
+                  <DeleteIcon />
+                </IconButton>
+              </CardActions>
+            </Card>
+          ))}
+          {tabValue === 1 && filterEvents('cancelled').map((event, index) => (
+            <Card key={index} sx={{ marginBottom: 2 }}>
+              <CardContent>
+                <Typography variant="h6" component="div">
+                  {event.title}
+                </Typography>
+                <Typography sx={{ mb: 1.5 }} color="text.secondary">
+                  {moment(event.start).format('MMMM Do YYYY')}
+                </Typography>
+                <Typography variant="body2">
+                  <strong>Location:</strong> {event.location}
+                </Typography>
+                <Typography variant="body2">
+                  <strong>Recipient:</strong> {event.recipient}
+                </Typography>
+              </CardContent>
+              <CardActions>
+                <IconButton color="primary" onClick={() => handleEditEvent(event)}>
+                  <EditIcon />
+                </IconButton>
+                <IconButton color="secondary" onClick={() => handleDeleteEvent(event)}>
+                  <DeleteIcon />
+                </IconButton>
+              </CardActions>
+            </Card>
+          ))}
+          {tabValue === 2 && filterEvents('completed').map((event, index) => (
+            <Card key={index} sx={{ marginBottom: 2 }}>
+              <CardContent>
+                <Typography variant="h6" component="div">
+                  {event.title}
+                </Typography>
+                <Typography sx={{ mb: 1.5 }} color="text.secondary">
+                  {moment(event.start).format('MMMM Do YYYY')}
                 </Typography>
                 <Typography variant="body2">
                   <strong>Location:</strong> {event.location}
@@ -213,6 +311,8 @@ function Calendar() {
           ))}
         </Paper>
       </Box>
+
+      {/* Event modal for adding/editing */}
       <Modal open={showModal} onClose={() => setShowModal(false)}>
         <Box
           sx={{
@@ -279,20 +379,6 @@ function Calendar() {
                 }}
               />
             </Grid>
-            <Grid item xs={6}>
-              <FormControl fullWidth margin="normal">
-                <InputLabel>Recipient</InputLabel>
-                <Select
-                  value={formData.recipient}
-                  onChange={handleFormChange}
-                  name="recipient"
-                >
-                  <MenuItem value="all">All</MenuItem>
-                  <MenuItem value="admin">Admin</MenuItem>
-                  <MenuItem value="users">Users</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
           </Grid>
           <Grid container spacing={2} justifyContent="center">
             <Grid item xs={6}>
@@ -307,21 +393,37 @@ function Calendar() {
               </Button>
             </Grid>
             {editingEvent && (
-              <Grid item xs={6}>
-                <Button
-                  variant="contained"
-                  color="secondary"
-                  onClick={handleDeleteEvent}
-                  fullWidth
-                  style={{ marginTop: '20px' }}
-                >
-                  Delete
-                </Button>
-              </Grid>
+              <>
+                <Grid item xs={6}>
+                  <Button
+                    variant="contained"
+                    color="secondary"
+                    onClick={handleDeleteEvent}
+                    fullWidth
+                    style={{ marginTop: '20px' }}
+                  >
+                    Delete
+                  </Button>
+                </Grid>
+                {editingEvent.status === 'upcoming' && (
+                  <Grid item xs={12}>
+                    <Button
+                      variant="contained"
+                      color="error"
+                      onClick={() => handleCancelEvent(editingEvent)}
+                      fullWidth
+                      style={{ marginTop: '10px' }}
+                    >
+                      Cancel Event
+                    </Button>
+                  </Grid>
+                )}
+              </>
             )}
           </Grid>
         </Box>
       </Modal>
+
       <Snackbar
         open={snackbarOpen}
         autoHideDuration={6000}

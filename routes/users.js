@@ -14,4 +14,18 @@ router.get('/', async (req, res) => {
   }
 });
 
+// PUT route to update user status
+router.put('/:id/status', async (req, res) => {
+  try {
+    const { status } = req.body; // Get the new status from the request
+    const user = await User.findByIdAndUpdate(req.params.id, { status }, { new: true });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    res.status(200).json(user); // Return updated user
+  } catch (error) {
+    res.status(500).json({ message: 'Error updating user status' });
+  }
+});
+
 module.exports = router;
