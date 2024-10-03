@@ -1,5 +1,6 @@
 const express = require('express');
 const Event = require('../models/Event');
+const Notification = require('../models/Notification'); // Import Notification model
 
 const router = express.Router();
 
@@ -20,7 +21,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Create a new event
+// Create a new event and add a global notification
 router.post('/', async (req, res) => {
   const { title, location, date, time, recipient, status } = req.body;
 
@@ -31,10 +32,19 @@ router.post('/', async (req, res) => {
       date,
       time,
       recipient,
-      status: status || 'upcoming' // Default to 'upcoming' if status is not provided
+      status: status || 'upcoming', // Default to 'upcoming' if status is not provided
     });
 
     await newEvent.save();
+
+    // Create a global notification for the event creation
+    const notification = new Notification({
+      title: 'New Event Created',
+      message: `Event "${title}" has been created for ${date} at ${time}.`,
+    });
+
+    await notification.save();
+
     res.status(201).json(newEvent);
   } catch (error) {
     res.status(500).json({ message: 'Error creating event', error });
@@ -63,7 +73,7 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// Delete an event
+// Delete an event and add a global notification
 router.delete('/:id', async (req, res) => {
   const { id } = req.params;
 
@@ -73,6 +83,14 @@ router.delete('/:id', async (req, res) => {
     if (!deletedEvent) {
       return res.status(404).json({ message: 'Event not found' });
     }
+
+    // Create a global notification for the event cancellation
+    const notification = new Notification({
+      title: 'Event Canceled',
+      message: `Event "${deletedEvent.title}" scheduled for ${deletedEvent.date} has been canceled.`,
+    });
+
+    await notification.save();
 
     res.status(200).json({ message: 'Event deleted' });
   } catch (error) {
