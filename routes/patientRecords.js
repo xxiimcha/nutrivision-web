@@ -38,16 +38,16 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST route to add an improvement to a specific patient record
-// POST route to add an improvement to a specific patient record
 router.post('/:id/add-improvement', async (req, res) => {
   try {
     const { id } = req.params;
     const { currentWeight } = req.body;
 
+    console.log("Received Improvement Data:", { id, currentWeight });
+
     // Find the patient record by ID
     const patientRecord = await PatientRecord.findById(id);
     if (!patientRecord) {
-      console.log('Patient record not found');
       return res.status(404).json({ message: 'Patient record not found' });
     }
 
@@ -55,25 +55,26 @@ router.post('/:id/add-improvement', async (req, res) => {
     const lastImprovement = await WeeklyImprovement.findOne({ patientId: id }).sort({ weekNumber: -1 });
     const previousWeight = lastImprovement ? lastImprovement.currentWeight : patientRecord.weight;
 
+    // Convert both currentWeight and previousWeight to numbers
+    const currentWeightNum = parseFloat(currentWeight);
+    const previousWeightNum = parseFloat(previousWeight);
+
     // Calculate the weight gain
-    const weightGain = currentWeight - previousWeight;
+    const weightGain = currentWeightNum - previousWeightNum;
+
+    console.log("Calculated Weight Gain:", weightGain);
 
     if (isNaN(weightGain)) {
-      console.log('Error: Weight gain calculation resulted in NaN');
       return res.status(400).json({ message: 'Invalid weight gain calculation' });
     }
-
-    // Calculate improvement as a percentage
-    const improvement = (previousWeight !== 0) ? (weightGain / previousWeight) * 100 : weightGain;
 
     // Create a new weekly improvement entry
     const weekNumber = (await WeeklyImprovement.countDocuments({ patientId: id })) + 1;
     const newImprovement = new WeeklyImprovement({
       patientId: id,
       weekNumber,
-      currentWeight,
+      currentWeight: currentWeightNum,  // Store the numeric value of the weight
       weightGain,
-      improvement, // Pass the calculated improvement here
     });
 
     // Save the weekly improvement to the database

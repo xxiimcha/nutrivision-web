@@ -16,13 +16,36 @@ const Monitoring = () => {
   const [newImprovement, setNewImprovement] = useState('');
   const { role } = useContext(UserContext); // Get the user role from context
 
+  // Function to determine the goal weight based on age and height
+  const getGoalWeight = (ageInMonths, height) => {
+    if (ageInMonths >= 0 && ageInMonths <= 1 && height >= 45 && height <= 55) {
+      return 2.5 + (4.5 - 2.5) / 2;
+    } else if (ageInMonths > 1 && ageInMonths <= 3 && height >= 55 && height <= 61) {
+      return 4.5 + (6.5 - 4.5) / 2;
+    } else if (ageInMonths > 3 && ageInMonths <= 6 && height >= 60 && height <= 66) {
+      return 6 + (8 - 6) / 2;
+    } else if (ageInMonths > 6 && ageInMonths <= 12 && height >= 65 && height <= 75) {
+      return 7.5 + (10.5 - 7.5) / 2;
+    } else if (ageInMonths > 12 && ageInMonths <= 24 && height >= 75 && height <= 85) {
+      return 9 + (12.5 - 9) / 2;
+    } else if (ageInMonths > 24 && ageInMonths <= 36 && height >= 85 && height <= 95) {
+      return 11 + (15 - 11) / 2;
+    } else if (ageInMonths > 36 && ageInMonths <= 48 && height >= 95 && height <= 105) {
+      return 12.5 + (18 - 12.5) / 2;
+    } else if (ageInMonths > 48 && ageInMonths <= 59 && height >= 100 && height <= 110) {
+      return 13 + (20 - 13) / 2;
+    } else {
+      return 0; // Return 0 if the age or height does not match any of the ranges
+    }
+  };
+
   // Fetch data from the patient records table and their associated weekly improvements
   useEffect(() => {
     const fetchRecords = async () => {
       try {
         const response = await axios.get('http://localhost:5000/api/patient-records');
         const updatedData = await Promise.all(response.data.map(async (record) => {
-          const goalWeight = record.ageInMonths * 0.4; // Compute goal weight based on age in months
+          const goalWeight = getGoalWeight(record.ageInMonths, record.height);
   
           // Fetch weekly improvements for this record
           const improvementsResponse = await axios.get(`http://localhost:5000/api/patient-records/${record._id}/improvements`);
@@ -30,14 +53,16 @@ const Monitoring = () => {
             weekNumber: improvement.weekNumber,
             improvement: improvement.improvement
           }));
-
+  
           // Calculate the latest weight based on improvements
           const latestWeight = improvementLogs.length > 0
             ? record.weight + improvementLogs.reduce((acc, val) => acc + val.improvement, 0)
-            : record.weight; 
-
+            : record.weight;
+  
           return { ...record, goalWeight, improvementLogs, latestWeight };
         }));
+  
+        console.log("Fetched Data:", updatedData);  // Check the fetched data here
         setData(updatedData);
       } catch (error) {
         console.error('Error fetching patient records or weekly improvements:', error);
@@ -45,7 +70,7 @@ const Monitoring = () => {
     };
   
     fetchRecords();
-  }, []);
+  }, []);  
 
   const handleOpenModal = (index) => {
     setSelectedIndex(index);
@@ -91,23 +116,23 @@ const Monitoring = () => {
   const handleAddImprovement = async () => {
     if (newImprovement && selectedIndex !== null) {
       const selectedRecord = data[selectedIndex];
-
+  
       try {
-        // Send the improvement to the backend
+        // Send the improvement directly to the backend without converting it to a float
         await axios.post(`http://localhost:5000/api/patient-records/${selectedRecord._id}/add-improvement`, {
-          currentWeight: parseFloat(newImprovement),
+          currentWeight: newImprovement,  // Directly pass the input value
         });
-
+  
         // Update the UI locally
         const updatedData = data.map((item, i) => {
           if (i === selectedIndex) {
-            const newLogs = [...item.improvementLogs, { weekNumber: item.improvementLogs.length + 1, weightGain: parseFloat(newImprovement) }];
-            const latestWeight = item.weight + newLogs.reduce((acc, val) => acc + val.weightGain, 0);
+            const newLogs = [...item.improvementLogs, { weekNumber: item.improvementLogs.length + 1, weightGain: newImprovement }];
+            const latestWeight = item.weight + newLogs.reduce((acc, val) => acc + parseFloat(val.weightGain), 0);
             return { ...item, improvementLogs: newLogs, latestWeight };
           }
           return item;
         });
-
+  
         setData(updatedData);
         handleCloseModal();
       } catch (error) {
@@ -115,7 +140,7 @@ const Monitoring = () => {
         alert('Failed to add improvement. Please try again.');
       }
     }
-  };
+  };  
 
   const filteredData = data.filter(row =>
     row.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -198,7 +223,7 @@ const Monitoring = () => {
         <DialogTitle>Weekly Improvement Logs</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Improvement logs for {selectedIndex !== null && data[selectedIndex]?.patientName}
+            Improvement logs for {selectedIndex !== null && data[selectedIndex]?.name}
           </DialogContentText>
 
           {selectedIndex !== null && data[selectedIndex]?.improvementLogs ? (

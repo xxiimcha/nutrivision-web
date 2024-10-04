@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useContext } from 'react';
-import io from 'socket.io-client'; // Import Socket.io client
+import io from 'socket.io-client';
 import {
   Box,
   Button,
@@ -21,58 +21,51 @@ import VideocamIcon from '@mui/icons-material/Videocam';
 import PhoneIcon from '@mui/icons-material/Phone';
 import axios from 'axios';
 import { UserContext } from '../context/UserContext';
+import DailyIframe from '@daily-co/daily-js'; // Import Daily.co JS library
 
 const socket = io('http://localhost:5000'); // Connect to your Socket.io server
 
 const Telemed = () => {
-  const { userId } = useContext(UserContext); // Get userId from UserContext
+  const { userId } = useContext(UserContext);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [incomingCall, setIncomingCall] = useState(null);
-  const [missedCalls, setMissedCalls] = useState([]);
   const [notifications, setNotifications] = useState([]);
+  const [callFrame, setCallFrame] = useState(null); // Store Daily call frame
 
-  // Fetch missed calls and call history when the component is mounted
+  const dailyAPIKey = '81ad64c2ef801f352d0b403f1b93cd5e93458e6dbe75d877c85be87c29173aba'; // Your Daily.co API key
+
+  // Fetch missed calls and notifications
   useEffect(() => {
     const fetchCallData = async () => {
       try {
-        // Fetch missed calls
-        const missedResponse = await axios.get(`http://localhost:5000/api/calls/missed?userId=${userId}`);
-        setMissedCalls(missedResponse.data);
-
-        // Fetch notifications
         const notificationsResponse = await axios.get(`http://localhost:5000/api/notifications/${userId}`);
         setNotifications(notificationsResponse.data);
-
       } catch (error) {
-        console.error('Error fetching missed calls or notifications:', error);
+        console.error('Error fetching notifications:', error);
       }
     };
-
     fetchCallData();
   }, [userId]);
 
   useEffect(() => {
-    // Register user with Socket.io when component mounts
     if (userId) {
       socket.emit('register-user', userId);
     }
 
-    // Listen for incoming call notifications
     socket.on('incoming-call', (data) => {
-      setIncomingCall(data.callerId); // Set the caller's ID when a call is incoming
+      setIncomingCall(data.callerId);
     });
 
-    // Cleanup the socket connection when the component is unmounted
     return () => {
       socket.off('incoming-call');
     };
   }, [userId]);
 
+  // Fetch users from the backend
   useEffect(() => {
-    // Fetch users from backend
     const fetchUsers = async () => {
       try {
         const response = await axios.get('http://localhost:5000/api/users');
@@ -81,7 +74,6 @@ const Telemed = () => {
         console.error('Error fetching users:', error);
       }
     };
-
     fetchUsers();
   }, []);
 
@@ -89,15 +81,15 @@ const Telemed = () => {
     setNewMessage(e.target.value);
   };
 
+  // Send message function
   const handleSendMessage = async () => {
     if (newMessage.trim() !== '' && userId && selectedUser) {
       try {
         const response = await axios.post('http://localhost:5000/api/messages/send', {
-          sender: userId,  // Use userId here
-          receiver: selectedUser._id,  // Assuming selectedUser is set correctly
+          sender: userId,
+          receiver: selectedUser._id,
           text: newMessage,
         });
-
         setMessages([...messages, response.data]);
         setNewMessage('');
       } catch (error) {
@@ -106,84 +98,82 @@ const Telemed = () => {
     }
   };
 
+  // Fetch and display messages with the selected user
   const handleUserClick = async (user) => {
     setSelectedUser(user);
-
     try {
-      // Fetch the previous messages between the logged-in user and the selected user
       const response = await axios.get('http://localhost:5000/api/messages/conversation', {
         params: {
           user1: userId,
           user2: user._id,
         },
       });
-      setMessages(response.data); // Set the messages state with the fetched conversation
+      setMessages(response.data);
     } catch (error) {
       console.error('Error fetching messages:', error);
     }
   };
 
-  // Modify the initiateCall function to include the callType (video or audio)
-  const initiateCall = (callType) => {
-    // Emit call event to the server with the type of call (video or audio)
-    socket.emit('call-user', { callerId: userId, receiverId: selectedUser._id, callType });
+  // Initiate a call using Daily.co API
+  const initiateCall = async (callType) => {
+    try {
+      const roomResponse = await axios.post(
+        'https://api.daily.co/v1/rooms',
+        {
+          properties: {
+            enable_screenshare: true,
+            enable_chat: true,
+          },
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${dailyAPIKey}`,
+          },
+        }
+      );
+      const roomUrl = roomResponse.data.url;
+      const frame = DailyIframe.createFrame();
+      setCallFrame(frame);
+      frame.join({ url: roomUrl });
+
+      // Emit socket event for call initiation
+      socket.emit('call-user', { callerId: userId, receiverId: selectedUser._id, callType });
+    } catch (error) {
+      console.error('Error initiating call with Daily.co:', error);
+    }
   };
 
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return isNaN(date.getTime()) ? 'Invalid Date' : date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
-
+  // Call actions
   const acceptCall = () => {
-    // Handle the call acceptance logic
-    console.log('Call accepted from:', incomingCall);
     socket.emit('accept-call', { callerId: incomingCall, receiverId: userId });
-    setIncomingCall(null); // Reset after accepting
+    setIncomingCall(null);
   };
 
   const declineCall = () => {
-    // Handle call decline and mark it as missed
-    console.log('Call declined');
     socket.emit('decline-call', { callerId: incomingCall, receiverId: userId });
-    setIncomingCall(null); // Reset after declining
+    setIncomingCall(null);
   };
 
+  // Display the latest message from a user
   const getLatestMessage = (user) => {
     const relevantMessages = messages.filter(
       (message) =>
         (message.sender === userId && message.receiver === user._id) ||
         (message.sender === user._id && message.receiver === userId)
     );
-  
     if (relevantMessages.length === 0) {
-      return "Start conversation"; // If no messages exist
+      return 'Start conversation';
     }
-  
-    // Get the latest message based on the timestamp
     const latestMessage = relevantMessages.reduce((latest, current) => {
       return new Date(current.timestamp) > new Date(latest.timestamp) ? current : latest;
     });
-  
-    return latestMessage.text; // Display the latest message text
+    return latestMessage.text;
   };
-  
+
   return (
     <Container sx={{ height: '100vh', padding: 0 }}>
       <Grid container sx={{ height: '100%' }}>
-        {/* Sidebar */}
-        <Grid
-          item
-          xs={12}
-          md={4}
-          lg={3}
-          sx={{
-            borderRight: { xs: 'none', md: '1px solid #ccc' },
-            padding: 2,
-            bgcolor: '#f0f4f8',
-            display: 'flex',
-            flexDirection: 'column',
-          }}
-        >
+        <Grid item xs={12} md={4} lg={3} sx={{ borderRight: { xs: 'none', md: '1px solid #ccc' }, padding: 2, bgcolor: '#f0f4f8', display: 'flex', flexDirection: 'column' }}>
           <Typography variant="h6" gutterBottom>
             Chats
           </Typography>
@@ -202,64 +192,33 @@ const Telemed = () => {
             }}
           />
           <List>
-            {/* Display fetched users in the chat list */}
             {users.map((user) => (
               <ListItem
                 button
                 key={user._id}
                 onClick={() => handleUserClick(user)}
-                selected={selectedUser?._id === user._id} // Highlight if this is the selected user
-                sx={{
-                  bgcolor: selectedUser?._id === user._id ? 'primary.light' : 'inherit',
-                  color: selectedUser?._id === user._id ? 'primary.contrastText' : 'inherit',
-                }}
+                selected={selectedUser?._id === user._id}
+                sx={{ bgcolor: selectedUser?._id === user._id ? 'primary.light' : 'inherit', color: selectedUser?._id === user._id ? 'primary.contrastText' : 'inherit' }}
               >
                 <ListItemAvatar>
                   <Avatar>{user.firstName?.charAt(0).toUpperCase() || 'U'}</Avatar>
                 </ListItemAvatar>
-                <ListItemText 
-                  primary={`${user.firstName || 'Unknown'} ${user.lastName || ''}`.trim()} 
-                  secondary={getLatestMessage(user)} 
-                />
+                <ListItemText primary={`${user.firstName || 'Unknown'} ${user.lastName || ''}`.trim()} secondary={getLatestMessage(user)} />
               </ListItem>
             ))}
           </List>
         </Grid>
 
-        {/* Chat window */}
-        <Grid
-          item
-          xs={12}
-          md={8}
-          lg={9}
-          sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-            padding: 2,
-          }}
-        >
-          {/* Chat header */}
+        <Grid item xs={12} md={8} lg={9} sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: 2 }}>
           {selectedUser ? (
-            <Box
-              sx={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                borderBottom: '1px solid #ccc',
-                paddingBottom: 1,
-                marginBottom: 2,
-              }}
-            >
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #ccc', paddingBottom: 1, marginBottom: 2 }}>
               <Typography variant="h6">
                 Conversation with {`${selectedUser.firstName || ''} ${selectedUser.lastName || ''}`.trim()}
               </Typography>
               <Box>
-                {/* Initiate video call */}
                 <IconButton color="primary" onClick={() => initiateCall('video')}>
                   <VideocamIcon />
                 </IconButton>
-                {/* Initiate audio call */}
                 <IconButton color="primary" onClick={() => initiateCall('audio')}>
                   <PhoneIcon />
                 </IconButton>
@@ -271,7 +230,6 @@ const Telemed = () => {
             </Typography>
           )}
 
-          {/* Chat messages */}
           {selectedUser && (
             <Box sx={{ flexGrow: 1, overflowY: 'auto', marginBottom: 2 }}>
               <List>
@@ -288,9 +246,6 @@ const Telemed = () => {
                       }}
                     >
                       <Typography variant="body2">{message.text}</Typography>
-                      <Typography variant="caption" align="right" display="block" sx={{ mt: 0.5 }}>
-                        {formatDate(message.timestamp)}
-                      </Typography>
                     </Paper>
                   </ListItem>
                 ))}
@@ -298,7 +253,6 @@ const Telemed = () => {
             </Box>
           )}
 
-          {/* Message input */}
           {selectedUser && (
             <Box sx={{ display: 'flex', alignItems: 'center' }}>
               <TextField
@@ -313,12 +267,7 @@ const Telemed = () => {
                   },
                 }}
               />
-              <Button
-                variant="contained"
-                color="primary"
-                onClick={handleSendMessage}
-                sx={{ ml: 2, borderRadius: '20px', minWidth: '100px' }}
-              >
+              <Button variant="contained" color="primary" onClick={handleSendMessage} sx={{ ml: 2, borderRadius: '20px', minWidth: '100px' }}>
                 Send
               </Button>
             </Box>
@@ -326,7 +275,6 @@ const Telemed = () => {
         </Grid>
       </Grid>
 
-      {/* Incoming call notification */}
       {incomingCall && (
         <div>
           <p>Incoming call from user {incomingCall}!</p>
@@ -339,26 +287,6 @@ const Telemed = () => {
         </div>
       )}
 
-      {/* Display missed calls */}
-      {missedCalls.length > 0 && (
-        <Box sx={{ padding: 2 }}>
-          <Typography variant="h6" gutterBottom>
-            Missed Calls:
-          </Typography>
-          <List>
-            {missedCalls.map((call, index) => (
-              <ListItem key={index}>
-                <ListItemText
-                  primary={`Missed ${call.callType} call from ${call.callerId.firstName} ${call.callerId.lastName}`}
-                  secondary={formatDate(call.timestamp)}
-                />
-              </ListItem>
-            ))}
-          </List>
-        </Box>
-      )}
-
-      {/* Display notifications */}
       {notifications.length > 0 && (
         <Box sx={{ padding: 2 }}>
           <Typography variant="h6" gutterBottom>
@@ -367,10 +295,7 @@ const Telemed = () => {
           <List>
             {notifications.map((notification, index) => (
               <ListItem key={index}>
-                <ListItemText
-                  primary={notification.title}
-                  secondary={notification.message}
-                />
+                <ListItemText primary={notification.title} secondary={notification.message} />
               </ListItem>
             ))}
           </List>
