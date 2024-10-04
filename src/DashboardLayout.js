@@ -32,8 +32,6 @@ import { styled } from '@mui/material/styles';
 import { UserContext } from './context/UserContext';
 import logo from './images/logo.png';
 import axios from 'axios';
-import { getDownloadURL, ref } from 'firebase/storage';
-import { storage } from './firebase/firebaseConfig'; // Import Firebase storage config
 
 const drawerWidth = 240;
 
@@ -53,7 +51,7 @@ const CustomListItem = styled(ListItem)(({ theme }) => ({
 
 function DashboardLayout(props) {
   const { window } = props;
-  const { role, name, email, userId, profilePicture } = useContext(UserContext); // Profile picture comes from context
+  const { role, name, email, userId } = useContext(UserContext); // Removed profilePicture from here
   const navigate = useNavigate();
 
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -62,25 +60,27 @@ function DashboardLayout(props) {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [anchorEl, setAnchorEl] = useState(null);
-  const [profilePicUrl, setProfilePicUrl] = useState(null); // State to store the profile picture URL
+  const [profilePicUrl, setProfilePicUrl] = useState('/default-avatar.png'); // Default profile picture
 
-  // Fetch profile picture from Firebase
+  // Fetch profile picture using userId from the backend
   useEffect(() => {
-    console.log('Profile picture from context:', profilePicture); // Log the value of profilePicture
+    const fetchProfileData = async () => {
+      try {
+        const response = await axios.get(`http://localhost:5000/api/admins/${userId}`); // Adjust the URL to match your API endpoint
+        const user = response.data;
 
-    const fetchProfilePicture = async () => {
-      if (profilePicture) {
-        const profilePicRef = ref(storage, profilePicture);
-        try {
-          const url = await getDownloadURL(profilePicRef);
-          setProfilePicUrl(url);
-        } catch (error) {
-          console.error('Error fetching profile picture:', error);
+        if (user.profilePicture) {
+          setProfilePicUrl(user.profilePicture); // Use the profilePicture field from the response
         }
+      } catch (error) {
+        console.error('Error fetching user profile data:', error);
       }
     };
-    fetchProfilePicture();
-  }, [profilePicture]);
+
+    if (userId) {
+      fetchProfileData();
+    }
+  }, [userId]);
 
   // Fetch notifications
   useEffect(() => {
@@ -88,7 +88,7 @@ function DashboardLayout(props) {
       try {
         const response = await axios.get(`http://localhost:5000/api/notifications/${userId}`);
         setNotifications(response.data);
-        setUnreadCount(response.data.filter(notification => !notification.read).length);
+        setUnreadCount(response.data.filter((notification) => !notification.read).length);
       } catch (error) {
         console.error('Error fetching notifications:', error);
       }
@@ -104,7 +104,6 @@ function DashboardLayout(props) {
 
   // Handle logout, clear localStorage, and navigate to login
   const handleLogout = () => {
-    console.log('Logout clicked');
     localStorage.clear();
     navigate('/login');
   };
@@ -151,12 +150,12 @@ function DashboardLayout(props) {
           justifyContent: 'center',
           p: 2,
           marginTop: '-70px',
-          textAlign: 'center'
+          textAlign: 'center',
         }}
       >
         <Link to={`/dashboard/profile/${userId}`} style={{ textDecoration: 'none', color: 'inherit' }}>
           <img
-            src={profilePicUrl || '/default-avatar.png'}
+            src={profilePicUrl} // Use the URL fetched from the backend or fallback to default
             alt="Profile"
             style={{ width: '60px', height: '60px', borderRadius: '50%', marginBottom: '10px' }}
           />
@@ -174,13 +173,17 @@ function DashboardLayout(props) {
       <Divider />
       <List>
         <CustomListItem button component={Link} to="/dashboard">
-          <ListItemIcon><DashboardIcon /></ListItemIcon>
+          <ListItemIcon>
+            <DashboardIcon />
+          </ListItemIcon>
           <ListItemText primary="Dashboard" />
         </CustomListItem>
 
         {(role === 'Admin' || role === 'Super Admin') && (
           <CustomListItem button onClick={toggleAccountsDropdown}>
-            <ListItemIcon><PeopleIcon /></ListItemIcon>
+            <ListItemIcon>
+              <PeopleIcon />
+            </ListItemIcon>
             <ListItemText primary="Accounts" />
             {openAccounts ? <ExpandLess /> : <ExpandMore />}
           </CustomListItem>
@@ -188,9 +191,15 @@ function DashboardLayout(props) {
         <Collapse in={openAccounts} timeout="auto" unmountOnExit>
           <List component="div" disablePadding>
             <CustomListItem sx={{ pl: 4 }} button component={Link} to="/dashboard/residence">
+              <ListItemIcon>
+                <HomeIcon />
+              </ListItemIcon>
               <ListItemText primary="Residence" />
             </CustomListItem>
             <CustomListItem sx={{ pl: 4 }} button component={Link} to="/dashboard/admin">
+              <ListItemIcon>
+                <PeopleIcon />
+              </ListItemIcon>
               <ListItemText primary="Admin" />
             </CustomListItem>
           </List>
@@ -198,7 +207,9 @@ function DashboardLayout(props) {
 
         {(role === 'Nutritionist' || role === 'Health Worker') && (
           <CustomListItem button onClick={toggleStatusDropdown}>
-            <ListItemIcon><HomeIcon /></ListItemIcon>
+            <ListItemIcon>
+              <HomeIcon />
+            </ListItemIcon>
             <ListItemText primary="Status" />
             {openStatus ? <ExpandLess /> : <ExpandMore />}
           </CustomListItem>
@@ -206,9 +217,15 @@ function DashboardLayout(props) {
         <Collapse in={openStatus} timeout="auto" unmountOnExit>
           <List component="div" disablePadding>
             <CustomListItem sx={{ pl: 4 }} button component={Link} to="/dashboard/records-management">
+              <ListItemIcon>
+                <PeopleIcon />
+              </ListItemIcon>
               <ListItemText primary="Records" />
             </CustomListItem>
             <CustomListItem sx={{ pl: 4 }} button component={Link} to="/dashboard/monitoring">
+              <ListItemIcon>
+                <HomeIcon />
+              </ListItemIcon>
               <ListItemText primary="Monitoring" />
             </CustomListItem>
           </List>
@@ -216,18 +233,20 @@ function DashboardLayout(props) {
 
         {role === 'Health Worker' && (
           <CustomListItem button component={Link} to="/dashboard/calendar">
-            <ListItemIcon><CalendarTodayIcon /></ListItemIcon>
+            <ListItemIcon>
+              <CalendarTodayIcon />
+            </ListItemIcon>
             <ListItemText primary="Calendar" />
           </CustomListItem>
         )}
 
         {(role === 'Nutritionist' || role === 'Health Worker') && (
-          <>
-            <CustomListItem button component={Link} to="/dashboard/food-management">
-              <ListItemIcon><PlansIcon /></ListItemIcon>
-              <ListItemText primary="Meal Plans" />
-            </CustomListItem>
-          </>
+          <CustomListItem button component={Link} to="/dashboard/food-management">
+            <ListItemIcon>
+              <PlansIcon />
+            </ListItemIcon>
+            <ListItemText primary="Meal Plans" />
+          </CustomListItem>
         )}
       </List>
     </div>
@@ -243,7 +262,7 @@ function DashboardLayout(props) {
         sx={{
           width: { sm: `calc(100% - ${drawerWidth}px)` },
           ml: { sm: `${drawerWidth}px` },
-          bgcolor: '#1A276C'
+          bgcolor: '#1A276C',
         }}
       >
         <Toolbar>
@@ -294,10 +313,7 @@ function DashboardLayout(props) {
                   <ListItemIcon>
                     {notification.read ? <MailIcon /> : <Badge color="secondary" variant="dot"><MailIcon /></Badge>}
                   </ListItemIcon>
-                  <ListItemText
-                    primary={notification.title}
-                    secondary={notification.message}
-                  />
+                  <ListItemText primary={notification.title} secondary={notification.message} />
                 </MenuItem>
               ))
             )}

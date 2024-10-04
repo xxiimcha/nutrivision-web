@@ -5,14 +5,16 @@ export const UserContext = createContext();
 export const UserProvider = ({ children }) => {
   const [role, setRole] = useState(null);
   const [userId, setUserId] = useState(null);
-  const [name, setName] = useState(null);  // Added state for name
-  const [email, setEmail] = useState(null);  // Added state for email
+  const [name, setName] = useState(null);
+  const [email, setEmail] = useState(null);
+  const [profilePicture, setProfilePicture] = useState(null);  // State for profile picture
 
   useEffect(() => {
     const storedRole = localStorage.getItem('userRole');
     const storedUserId = localStorage.getItem('userId');
-    const storedName = localStorage.getItem('userName');  // Retrieve stored name
-    const storedEmail = localStorage.getItem('userEmail');  // Retrieve stored email
+    const storedName = localStorage.getItem('userName');
+    const storedEmail = localStorage.getItem('userEmail');
+    const storedProfilePicture = localStorage.getItem('userProfilePicture');  // Retrieve profile picture from localStorage
 
     if (storedRole) {
       setRole(storedRole);
@@ -21,15 +23,20 @@ export const UserProvider = ({ children }) => {
       setUserId(storedUserId);
     }
     if (storedName) {
-      setName(storedName);  // Set the name from localStorage
+      setName(storedName);
     }
     if (storedEmail) {
-      setEmail(storedEmail);  // Set the email from localStorage
+      setEmail(storedEmail);
+    }
+    if (storedProfilePicture) {
+      setProfilePicture(storedProfilePicture);  // Set profile picture
     }
   }, []);
 
   return (
-    <UserContext.Provider value={{ role, setRole, userId, setUserId, name, setName, email, setEmail }}>
+    <UserContext.Provider
+      value={{ role, setRole, userId, setUserId, name, setName, email, setEmail, profilePicture, setProfilePicture }}
+    >
       {children}
     </UserContext.Provider>
   );

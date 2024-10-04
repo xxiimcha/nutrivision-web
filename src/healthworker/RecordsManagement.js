@@ -73,25 +73,27 @@ const RecordsManagement = () => {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Reference Number</TableCell> {/* Added this line */}
-              <TableCell>Address</TableCell>
-              <TableCell>Name of Parent</TableCell>
-              <TableCell>Full name of Patient</TableCell>
-              <TableCell>Patient Date of Birth</TableCell>
-              <TableCell>Patient Gender</TableCell>
-              <TableCell>Patient Height (CM)</TableCell>
-              <TableCell>Patient Weight (KG)</TableCell>
-              <TableCell>Date of Weighing</TableCell>
-              <TableCell>Actions</TableCell>
+              <TableCell sx={{ fontWeight: 'bold' }}>Number</TableCell> 
+              <TableCell sx={{ fontWeight: 'bold' }}>Name of Parent</TableCell>
+              <TableCell sx={{ fontWeight: 'bold' }}>Full name of Patient</TableCell>
+              <TableCell sx={{ fontWeight: 'bold' }}>Address</TableCell>
+              <TableCell sx={{ fontWeight: 'bold' }}>Patient Date of Birth</TableCell>
+              <TableCell sx={{ fontWeight: 'bold' }}>Patient Gender</TableCell>
+              <TableCell sx={{ fontWeight: 'bold' }}>Patient Height (CM)</TableCell>
+              <TableCell sx={{ fontWeight: 'bold' }}>Patient Weight (KG)</TableCell>
+              <TableCell sx={{ fontWeight: 'bold' }}>Date of Weighing</TableCell>
+              <TableCell sx={{ fontWeight: 'bold' }}>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {filteredRecords.map((record, index) => (
               <TableRow key={index}>
-                <TableCell>{record.referenceNumber}</TableCell> {/* Added this line */}
-                <TableCell>{record.address}</TableCell>
-                <TableCell>{record.parentName}</TableCell>
+                <TableCell>
+                  <Typography fontWeight="bold">{index + 1}</Typography> {/* Incremental number in bold */}
+                </TableCell>
+                <TableCell>{record.guardian}</TableCell>
                 <TableCell>{record.name}</TableCell>
+                <TableCell>{record.address}</TableCell>
                 <TableCell>{extractDate(record.dob)}</TableCell>
                 <TableCell>{record.gender}</TableCell>
                 <TableCell>{record.height}</TableCell>

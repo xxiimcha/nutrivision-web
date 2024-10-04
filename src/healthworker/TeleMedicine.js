@@ -148,6 +148,25 @@ const Telemed = () => {
     setIncomingCall(null); // Reset after declining
   };
 
+  const getLatestMessage = (user) => {
+    const relevantMessages = messages.filter(
+      (message) =>
+        (message.sender === userId && message.receiver === user._id) ||
+        (message.sender === user._id && message.receiver === userId)
+    );
+  
+    if (relevantMessages.length === 0) {
+      return "Start conversation"; // If no messages exist
+    }
+  
+    // Get the latest message based on the timestamp
+    const latestMessage = relevantMessages.reduce((latest, current) => {
+      return new Date(current.timestamp) > new Date(latest.timestamp) ? current : latest;
+    });
+  
+    return latestMessage.text; // Display the latest message text
+  };
+  
   return (
     <Container sx={{ height: '100vh', padding: 0 }}>
       <Grid container sx={{ height: '100%' }}>
@@ -196,11 +215,11 @@ const Telemed = () => {
                 }}
               >
                 <ListItemAvatar>
-                  <Avatar>{user.firstName.charAt(0).toUpperCase()}</Avatar>
+                  <Avatar>{user.firstName?.charAt(0).toUpperCase() || 'U'}</Avatar>
                 </ListItemAvatar>
                 <ListItemText 
-                  primary={`${user.firstName || ''} ${user.lastName || ''}`.trim()} 
-                  secondary="Last message..." 
+                  primary={`${user.firstName || 'Unknown'} ${user.lastName || ''}`.trim()} 
+                  secondary={getLatestMessage(user)} 
                 />
               </ListItem>
             ))}

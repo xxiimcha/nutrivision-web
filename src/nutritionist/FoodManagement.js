@@ -17,13 +17,14 @@ import {
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import Chip from '@mui/material/Chip';
 
 const FoodManagement = () => {
   const [kids, setKids] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedKid, setSelectedKid] = useState(null); // For storing selected kid's info
   const [open, setOpen] = useState(false); // For handling modal open/close
-  const [filterType, setFilterType] = useState('Malnourished'); // Track current filter type
+  const [filterType, setFilterType] = useState('All'); // Default filter type set to 'All'
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -43,12 +44,16 @@ const FoodManagement = () => {
     setSearchTerm(event.target.value);
   };
 
-  // Filter kids based on their nutrition status (Malnourished/Obese) and search term
-  const filteredKids = kids.filter(
-    (kid) =>
-      kid.nutritionStatus === filterType && // Apply filter type (Malnourished or Obese)
+  // Filter kids based on their nutrition status (All, Malnourished, Obese) and search term
+  const filteredKids = kids.filter((kid) => {
+    if (filterType === 'All') {
+      return kid.name.toLowerCase().includes(searchTerm.toLowerCase());
+    }
+    return (
+      kid.nutritionStatus === filterType &&
       kid.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+    );
+  });
 
   const handleViewMealPlan = (id, dateOfWeighing) => {
     const date = new Date(dateOfWeighing);
@@ -75,12 +80,20 @@ const FoodManagement = () => {
     setFilterType('Obese');
   };
 
+  // Set filter to 'All'
+  const showAll = () => {
+    setFilterType('All');
+  };
+
   return (
     <Container>
       <Typography variant="h4" gutterBottom align="center">
         Weekly Meal Plan
       </Typography>
       <Box display="flex" justifyContent="center" mb={2}>
+        <Button variant="contained" sx={{ mr: 2 }} onClick={showAll}>
+          ALL KIDS
+        </Button>
         <Button variant="contained" color="primary" sx={{ mr: 2 }} onClick={showMalnourished}>
           MALNOURISHED KIDS
         </Button>
@@ -182,7 +195,7 @@ const FoodManagement = () => {
                   </TableRow>
                   <TableRow>
                     <TableCell><strong>Date of Birth:</strong></TableCell>
-                    <TableCell>{selectedKid.dob}</TableCell>
+                    <TableCell>{new Date(selectedKid.dob).toLocaleDateString()}</TableCell> {/* Format Date */}
                   </TableRow>
                   <TableRow>
                     <TableCell><strong>Gender:</strong></TableCell>
@@ -198,7 +211,7 @@ const FoodManagement = () => {
                   </TableRow>
                   <TableRow>
                     <TableCell><strong>Date of Weighing:</strong></TableCell>
-                    <TableCell>{selectedKid.dateOfWeighing}</TableCell>
+                    <TableCell>{new Date(selectedKid.dateOfWeighing).toLocaleDateString()}</TableCell> {/* Format Date */}
                   </TableRow>
                   <TableRow>
                     <TableCell><strong>Age in Months:</strong></TableCell>
@@ -206,19 +219,39 @@ const FoodManagement = () => {
                   </TableRow>
                   <TableRow>
                     <TableCell><strong>Weight for Age:</strong></TableCell>
-                    <TableCell>{selectedKid.weightForAge}</TableCell>
+                    <TableCell>
+                      <Chip 
+                        label={selectedKid.weightForAge} 
+                        color={selectedKid.weightForAge === 'Normal' ? 'success' : 'warning'} 
+                      />
+                    </TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell><strong>Height for Age:</strong></TableCell>
-                    <TableCell>{selectedKid.heightForAge}</TableCell>
+                    <TableCell>
+                      <Chip 
+                        label={selectedKid.heightForAge} 
+                        color={selectedKid.heightForAge === 'Normal' ? 'success' : 'warning'} 
+                      />
+                    </TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell><strong>Weight for Height:</strong></TableCell>
-                    <TableCell>{selectedKid.weightForHeight}</TableCell>
+                    <TableCell>
+                      <Chip 
+                        label={selectedKid.weightForHeight} 
+                        color={selectedKid.weightForHeight === 'Normal' ? 'success' : selectedKid.weightForHeight === 'Wasted' ? 'error' : 'warning'} 
+                      />
+                    </TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell><strong>Nutrition Status:</strong></TableCell>
-                    <TableCell>{selectedKid.nutritionStatus}</TableCell>
+                    <TableCell>
+                      <Chip 
+                        label={selectedKid.nutritionStatus} 
+                        color={selectedKid.nutritionStatus === 'Normal' ? 'success' : selectedKid.nutritionStatus === 'Malnourished' ? 'error' : 'warning'} 
+                      />
+                    </TableCell>
                   </TableRow>
                 </TableBody>
                 <TableFooter>

@@ -58,23 +58,26 @@ const Monitoring = () => {
   };
 
   const calculatePercentageOfGoalAchieved = (latestWeight, goalWeight, nutritionStatus) => {
-    if (goalWeight <= 0) return 0; // Avoid division by zero
-
+    // Ensure latestWeight and goalWeight are valid numbers
+    if (isNaN(latestWeight) || isNaN(goalWeight) || goalWeight <= 0) {
+      return 0; // Return 0% if values are not valid or goal weight is zero or less
+    }
+  
     let percentageAchieved = 0;
-
+  
     // Determine whether the patient needs to gain or lose weight based on nutritionStatus
     if (nutritionStatus === 'Malnourished') {
       // If malnourished, they should gain weight
       percentageAchieved = ((latestWeight / goalWeight) * 100).toFixed(2);
     } else if (nutritionStatus === 'Obese') {
       // If obese, they should lose weight (goalWeight should be lower than current weight)
-      const weightLossGoal = goalWeight; // Assuming goal weight is the target to lose
-      const weightLost = latestWeight - goalWeight;
-      percentageAchieved = ((weightLost / weightLossGoal) * 100).toFixed(2);
+      const weightLossGoal = latestWeight - goalWeight; // Calculate weight loss needed
+      percentageAchieved = ((weightLossGoal / latestWeight) * 100).toFixed(2);
     }
-
-    return percentageAchieved >= 0 ? percentageAchieved : 0;
-  };
+  
+    // Ensure the percentage doesn't exceed 100% and avoid negative percentages
+    return Math.max(0, Math.min(percentageAchieved, 100));
+  };  
 
   const determineAction = (nutritionStatus) => {
     if (nutritionStatus === 'Malnourished') {

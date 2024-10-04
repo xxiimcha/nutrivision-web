@@ -106,17 +106,16 @@ router.get('/', async (req, res) => {
 // Retrieve an admin by ID
 router.get('/:id', async (req, res) => {
   const { id } = req.params;
-
-  try {
-    const admin = await Admin.findById(id);
-    if (!admin) {
-      return res.status(404).json({ message: 'Admin not found' });
+    try {
+      const admin = await Admin.findById(id);
+      if (!admin) {
+        return res.status(404).json({ message: 'Admin not found' });
+      }
+      res.status(200).json(admin);
+    } catch (error) {
+      console.error('Error fetching admin:', error);
+      res.status(500).json({ message: 'Internal server error' });
     }
-    res.status(200).json(admin);
-  } catch (error) {
-    console.error('Error fetching admin:', error);
-    res.status(500).json({ message: 'Internal server error' });
-  }
 });
 
 // Update an admin by ID
