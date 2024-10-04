@@ -34,6 +34,7 @@ const Telemed = () => {
   const [incomingCall, setIncomingCall] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [callFrame, setCallFrame] = useState(null); // Store Daily call frame
+  const [isInCall, setIsInCall] = useState(false);  // Track call status
 
   const dailyAPIKey = '81ad64c2ef801f352d0b403f1b93cd5e93458e6dbe75d877c85be87c29173aba'; // Your Daily.co API key
 
@@ -123,6 +124,7 @@ const Telemed = () => {
           properties: {
             enable_screenshare: true,
             enable_chat: true,
+            max_participants: 2,
           },
         },
         {
@@ -131,15 +133,29 @@ const Telemed = () => {
           },
         }
       );
+      
       const roomUrl = roomResponse.data.url;
-      const frame = DailyIframe.createFrame();
-      setCallFrame(frame);
-      frame.join({ url: roomUrl });
+
+      // Open a new window with the call URL
+      const newWindow = window.open(roomUrl, '_blank', 'width=800,height=600');
+      if (newWindow) {
+        newWindow.focus(); // Bring the new window to the front
+      }
 
       // Emit socket event for call initiation
       socket.emit('call-user', { callerId: userId, receiverId: selectedUser._id, callType });
     } catch (error) {
       console.error('Error initiating call with Daily.co:', error);
+    }
+  };
+
+
+  // End/Leave the call
+  const leaveCall = () => {
+    if (callFrame) {
+      callFrame.leave();  // Disconnect from the call
+      setCallFrame(null); // Reset call frame
+      setIsInCall(false); // Update call status
     }
   };
 
@@ -222,6 +238,12 @@ const Telemed = () => {
                 <IconButton color="primary" onClick={() => initiateCall('audio')}>
                   <PhoneIcon />
                 </IconButton>
+                {/* Display the leave button when a call is in progress */}
+                {isInCall && (
+                  <Button variant="contained" color="secondary" onClick={leaveCall}>
+                    Leave Call
+                  </Button>
+                )}
               </Box>
             </Box>
           ) : (
