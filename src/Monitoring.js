@@ -8,6 +8,8 @@ import SearchIcon from '@mui/icons-material/Search';
 import axios from 'axios';
 import { UserContext } from './context/UserContext'; // Assuming you have a UserContext for role information
 
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+
 const Monitoring = () => {
   const [data, setData] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -43,12 +45,12 @@ const Monitoring = () => {
   useEffect(() => {
     const fetchRecords = async () => {
       try {
-        const response = await axios.get('http://localhost:5000/api/patient-records');
+        const response = await axios.get('${API_BASE_URL}/patient-records');
         const updatedData = await Promise.all(response.data.map(async (record) => {
           const goalWeight = getGoalWeight(record.ageInMonths, record.height);
   
           // Fetch weekly improvements for this record
-          const improvementsResponse = await axios.get(`http://localhost:5000/api/patient-records/${record._id}/improvements`);
+          const improvementsResponse = await axios.get(`${API_BASE_URL}/patient-records/${record._id}/improvements`);
           const improvementLogs = improvementsResponse.data.map(improvement => ({
             weekNumber: improvement.weekNumber,
             improvement: improvement.improvement
@@ -119,7 +121,7 @@ const Monitoring = () => {
   
       try {
         // Send the improvement directly to the backend without converting it to a float
-        await axios.post(`http://localhost:5000/api/patient-records/${selectedRecord._id}/add-improvement`, {
+        await axios.post(`${API_BASE_URL}/patient-records/${selectedRecord._id}/add-improvement`, {
           currentWeight: newImprovement,  // Directly pass the input value
         });
   

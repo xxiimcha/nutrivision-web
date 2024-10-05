@@ -24,10 +24,9 @@ import {
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 
-function Residences({ loggedInUser }) {
-  // Log to verify if loggedInUser is passed correctly
-  console.log('Logged in user:', loggedInUser);
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL; // Get API URL from environment variable
 
+function Residences({ loggedInUser }) {
   const [residenceAccounts, setResidenceAccounts] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
@@ -39,14 +38,17 @@ function Residences({ loggedInUser }) {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await axios.get('http://localhost:5000/api/users');
+        setLoading(true); // Set loading state
+        const response = await axios.get(`${API_BASE_URL}/users`); // Fetch data from the correct API URL
         const users = response.data.map((user) => ({
           ...user,
-          status: user.status || 'active', 
+          status: user.status || 'active', // Default status to 'active' if not available
         }));
         setResidenceAccounts(users);
       } catch (error) {
         console.error('Error fetching users:', error);
+      } finally {
+        setLoading(false); // Stop loading state
       }
     };
     fetchUsers();
@@ -54,45 +56,37 @@ function Residences({ loggedInUser }) {
 
   const handleStatusChange = (user) => {
     setSelectedUser(user);
-    setPassword('');
-    setPasswordDialogOpen(true);
+    setPassword(''); // Reset password input
+    setPasswordDialogOpen(true); // Open password dialog
   };
 
   const handlePasswordDialogClose = () => {
     setPasswordDialogOpen(false);
     setSelectedUser(null);
-    setPasswordError('');
+    setPasswordError(''); // Clear error
   };
 
   const handlePasswordSubmit = async () => {
     setLoading(true);
     try {
-      console.log('Attempting to verify password...');
-
-      const response = await axios.post('http://localhost:5000/api/login/verify-password', {
+      const response = await axios.post(`${API_BASE_URL}/login/verify-password`, {
         email: loggedInUser.email,  // Use the logged-in user's email
         password,
       });
 
-      console.log('Password verification response:', response.data);
-
       if (response.data.success) {
-        console.log('Password verified, updating user status...');
-
         const updatedStatus = selectedUser.status === 'active' ? 'inactive' : 'active';
-        
-        const updateResponse = await axios.put(`http://localhost:5000/api/users/${selectedUser._id}/status`, {
+
+        const updateResponse = await axios.put(`${API_BASE_URL}/users/${selectedUser._id}/status`, {
           status: updatedStatus,
         });
-
-        console.log('Status update response:', updateResponse.data);
 
         const updatedAccounts = residenceAccounts.map((account) =>
           account._id === selectedUser._id
             ? { ...account, status: updatedStatus }
             : account
         );
-        setResidenceAccounts(updatedAccounts);
+        setResidenceAccounts(updatedAccounts); // Update the UI with the new status
         handlePasswordDialogClose();
       } else {
         setPasswordError('Incorrect password. Please try again.');
@@ -106,9 +100,10 @@ function Residences({ loggedInUser }) {
   };
 
   const handleSearchChange = (e) => {
-    setSearchQuery(e.target.value);
+    setSearchQuery(e.target.value); // Update the search query state
   };
 
+  // Filter residence accounts by name based on search query
   const filteredAccounts = residenceAccounts.filter((account) =>
     `${account.firstName} ${account.lastName}`.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -117,8 +112,10 @@ function Residences({ loggedInUser }) {
     <Card>
       <CardContent>
         <Typography variant="h5" component="div" gutterBottom>
-          Residence Content
+          Residence Accounts
         </Typography>
+        
+        {/* Search Field */}
         <TextField
           placeholder="Search by name"
           variant="outlined"
@@ -134,49 +131,56 @@ function Residences({ loggedInUser }) {
             ),
           }}
         />
+        
+        {/* Display the Residence Accounts Table */}
         <TableContainer component={Paper} sx={{ marginTop: 2 }}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>No.</TableCell>
-                <TableCell>First Name</TableCell>
-                <TableCell>Last Name</TableCell>
-                <TableCell>Phone</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {filteredAccounts.length > 0 ? (
-                filteredAccounts.map((account, index) => (
-                  <TableRow key={index}>
-                    <TableCell>{index + 1}</TableCell> 
-                    <TableCell>{account.firstName}</TableCell>
-                    <TableCell>{account.lastName}</TableCell>
-                    <TableCell>{account.phone}</TableCell>
-                    <TableCell>{account.status}</TableCell>
-                    <TableCell>
-                      <Button
-                        variant="contained"
-                        color={account.status === 'active' ? 'secondary' : 'primary'}
-                        onClick={() => handleStatusChange(account)}
-                      >
-                        {account.status === 'active' ? 'Deactivate' : 'Activate'}
-                      </Button>
+          {loading ? (
+            <CircularProgress sx={{ display: 'block', margin: 'auto' }} />
+          ) : (
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>No.</TableCell>
+                  <TableCell>First Name</TableCell>
+                  <TableCell>Last Name</TableCell>
+                  <TableCell>Phone</TableCell>
+                  <TableCell>Status</TableCell>
+                  <TableCell>Actions</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {filteredAccounts.length > 0 ? (
+                  filteredAccounts.map((account, index) => (
+                    <TableRow key={index}>
+                      <TableCell>{index + 1}</TableCell> 
+                      <TableCell>{account.firstName}</TableCell>
+                      <TableCell>{account.lastName}</TableCell>
+                      <TableCell>{account.phone}</TableCell>
+                      <TableCell>{account.status}</TableCell>
+                      <TableCell>
+                        <Button
+                          variant="contained"
+                          color={account.status === 'active' ? 'secondary' : 'primary'}
+                          onClick={() => handleStatusChange(account)}
+                        >
+                          {account.status === 'active' ? 'Deactivate' : 'Activate'}
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={6} align="center">
+                      No matching results found.
                     </TableCell>
                   </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={6} align="center">
-                    No matching results found.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+                )}
+              </TableBody>
+            </Table>
+          )}
         </TableContainer>
 
+        {/* Password Confirmation Dialog */}
         <Dialog open={passwordDialogOpen} onClose={handlePasswordDialogClose}>
           <DialogTitle>Password Confirmation</DialogTitle>
           <DialogContent>
