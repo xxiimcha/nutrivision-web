@@ -18,6 +18,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Chip from '@mui/material/Chip';
+import moment from 'moment';
 
 const FoodManagement = () => {
   const [kids, setKids] = useState([]);
@@ -56,10 +57,10 @@ const FoodManagement = () => {
   });
 
   const handleViewMealPlan = (id, dateOfWeighing) => {
-    const date = new Date(dateOfWeighing);
-    const formattedDate = date.toISOString().split('T')[0]; // Extracts the date part in YYYY-MM-DD format
+    const date = moment(dateOfWeighing).startOf('isoWeek'); // Get the Monday of the week
+    const formattedDate = date.format('YYYY-MM-DD'); // Format the date as YYYY-MM-DD
     navigate(`/dashboard/meal-plan/${id}/${formattedDate}`);
-  };
+  };  
 
   const handleViewInfo = (kid) => {
     setSelectedKid(kid);

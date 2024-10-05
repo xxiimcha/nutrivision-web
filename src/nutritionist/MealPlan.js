@@ -19,6 +19,10 @@ import {
   Accordion,
   AccordionSummary,
   AccordionDetails,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
 } from '@mui/material';
 import { Edit, CheckCircle, Send, ArrowBackIos, ArrowForwardIos, ExpandMore } from '@mui/icons-material';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -30,13 +34,15 @@ const MealPlan = () => {
   const [mealPlan, setMealPlan] = useState({});
   const [patientInfo, setPatientInfo] = useState({ patientName: 'N/A', height: 'N/A', weight: 'N/A' });
   const [open, setOpen] = useState(false); 
+  const [previewOpen, setPreviewOpen] = useState(false); // State for preview modal
   const [selectedDay, setSelectedDay] = useState('');
   const [selectedMealType, setSelectedMealType] = useState('');
   const [mealDetails, setMealDetails] = useState({ mainDish: '', drinks: '', vitamins: '', ingredients: '' });
+  const [isConfirmed, setIsConfirmed] = useState(false); // To track confirmation before saving
   const navigate = useNavigate();
 
-  const startOfWeek = moment(week).startOf('week').format('YYYY-MM-DD');
-  const endOfWeek = moment(week).endOf('week').format('YYYY-MM-DD');
+  const startOfWeek = moment(week).startOf('isoWeek').format('YYYY-MM-DD'); // ISO week starts from Monday
+  const endOfWeek = moment(week).endOf('isoWeek').format('YYYY-MM-DD');
 
   useEffect(() => {
     const fetchMealPlanAndPatientInfo = async () => {
@@ -106,6 +112,21 @@ const MealPlan = () => {
   const handleCloseModal = () => {
     setOpen(false);
     setMealDetails({ mainDish: '', drinks: '', vitamins: '', ingredients: '' });
+  };
+
+  const handlePreview = () => {
+    setOpen(false); 
+    setPreviewOpen(true); // Open the preview modal
+  };
+
+  const handleClosePreview = () => {
+    setPreviewOpen(false);
+  };
+
+  const handleConfirmSave = () => {
+    setIsConfirmed(true);
+    setPreviewOpen(false);
+    handleSaveMeal();
   };
 
   const handleSaveMeal = async () => {
@@ -264,6 +285,7 @@ const MealPlan = () => {
         ))}
       </Grid>
 
+      {/* Modal for editing meal details */}
       <Modal open={open} onClose={handleCloseModal}>
         <Box
           sx={{
@@ -313,8 +335,8 @@ const MealPlan = () => {
             sx={{ mb: 2 }}
           />
           <Box display="flex" justifyContent="space-between" mt={2}>
-            <Button variant="contained" sx={{ backgroundColor: '#1565C0' }} onClick={handleSaveMeal}>
-              Save
+            <Button variant="contained" sx={{ backgroundColor: '#1565C0' }} onClick={handlePreview}>
+              Preview
             </Button>
             <Button variant="contained" color="secondary" onClick={handleCloseModal}>
               Cancel
@@ -322,6 +344,27 @@ const MealPlan = () => {
           </Box>
         </Box>
       </Modal>
+
+      {/* Confirmation/Preview Modal */}
+      <Dialog open={previewOpen} onClose={handleClosePreview}>
+        <DialogTitle>Preview Meal Plan</DialogTitle>
+        <DialogContent>
+          <Typography variant="body1"><strong>Day:</strong> {selectedDay}</Typography>
+          <Typography variant="body1"><strong>Meal Type:</strong> {selectedMealType}</Typography>
+          <Typography variant="body1"><strong>Main Dish:</strong> {mealDetails.mainDish}</Typography>
+          <Typography variant="body1"><strong>Drinks:</strong> {mealDetails.drinks}</Typography>
+          <Typography variant="body1"><strong>Vitamins:</strong> {mealDetails.vitamins}</Typography>
+          <Typography variant="body1"><strong>Ingredients:</strong> {mealDetails.ingredients}</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button variant="contained" sx={{ backgroundColor: '#1565C0' }} onClick={handleConfirmSave}>
+            Confirm Save
+          </Button>
+          <Button variant="contained" color="secondary" onClick={handleClosePreview}>
+            Cancel
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 };
