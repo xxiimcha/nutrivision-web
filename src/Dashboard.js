@@ -10,7 +10,7 @@ const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 const fetchHealthData = async () => {
   try {
     console.log('Fetching health data...');
-    const response = await axios.get('${API_BASE_URL}/patient-records/health-data/count'); // Replace with your API URL
+    const response = await axios.get(`${API_BASE_URL}/patient-records/health-data/count`); // Correct API URL
     console.log('Health data fetched successfully:', response.data);
     return response.data || [];  // Ensure the response data is an array
   } catch (error) {
