@@ -14,6 +14,8 @@ import {
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import axios from 'axios';
 
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+
 const PatientDetails = () => {
   const { recordId } = useParams();
   const navigate = useNavigate();
@@ -22,7 +24,7 @@ const PatientDetails = () => {
   useEffect(() => {
     const fetchRecord = async () => {
       try {
-        const response = await axios.get(`http://localhost:5000/api/patient-records/${recordId}`);
+        const response = await axios.get(`${API_BASE_URL}/patient-records/${recordId}`);
         setRecord(response.data);
       } catch (error) {
         console.error('Error fetching record:', error);

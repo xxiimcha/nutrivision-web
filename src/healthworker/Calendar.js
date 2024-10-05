@@ -11,6 +11,7 @@ import DeleteIcon from '@mui/icons-material/Delete'; // <-- Add this for DeleteI
 import EditIcon from '@mui/icons-material/Edit';
 import axios from 'axios';
 
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 const localizer = momentLocalizer(moment);
 
 const initialFormData = {
@@ -38,7 +39,7 @@ function Calendar() {
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        const response = await axios.get('http://localhost:5000/api/events');
+        const response = await axios.get(`${API_BASE_URL}/events`);
         const fetchedEvents = response.data.map(event => {
           const startDate = moment(event.date, 'YYYY-MM-DD').toDate(); // Only parse the date part
           return {
@@ -72,7 +73,7 @@ function Calendar() {
     const promises = updatedEvents.map(async (event) => {
       if (event.status === 'completed' && event.status !== 'cancelled') {
         try {
-          await axios.put(`http://localhost:5000/api/events/${event._id}`, event);
+          await axios.put(`${API_BASE_URL}/events/${event._id}`, event);
         } catch (error) {
           console.error('Error updating event status:', error);
         }
@@ -141,9 +142,9 @@ function Calendar() {
   const saveEventToBackend = async (event) => {
     try {
       if (editingEvent) {
-        await axios.put(`http://localhost:5000/api/events/${editingEvent._id}`, event);
+        await axios.put(`${API_BASE_URL}/events/${editingEvent._id}`, event);
       } else {
-        await axios.post('http://localhost:5000/api/events', event);
+        await axios.post('${API_BASE_URL}/events', event);
       }
     } catch (error) {
       console.error('Error saving event:', error);

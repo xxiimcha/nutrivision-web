@@ -23,6 +23,8 @@ import axios from 'axios';
 import { UserContext } from '../context/UserContext';
 import DailyIframe from '@daily-co/daily-js'; // Import Daily.co JS library
 
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+
 const socket = io('http://localhost:5000'); // Connect to your Socket.io server
 
 const Telemed = () => {
@@ -42,7 +44,7 @@ const Telemed = () => {
   useEffect(() => {
     const fetchCallData = async () => {
       try {
-        const notificationsResponse = await axios.get(`http://localhost:5000/api/notifications/${userId}`);
+        const notificationsResponse = await axios.get(`${API_BASE_URL}/notifications/${userId}`);
         setNotifications(notificationsResponse.data);
       } catch (error) {
         console.error('Error fetching notifications:', error);
@@ -69,7 +71,7 @@ const Telemed = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await axios.get('http://localhost:5000/api/users');
+        const response = await axios.get(`${API_BASE_URL}/users`);
         setUsers(response.data);
       } catch (error) {
         console.error('Error fetching users:', error);
@@ -86,7 +88,7 @@ const Telemed = () => {
   const handleSendMessage = async () => {
     if (newMessage.trim() !== '' && userId && selectedUser) {
       try {
-        const response = await axios.post('http://localhost:5000/api/messages/send', {
+        const response = await axios.post(`${API_BASE_URL}/messages/send`, {
           sender: userId,
           receiver: selectedUser._id,
           text: newMessage,
@@ -103,7 +105,7 @@ const Telemed = () => {
   const handleUserClick = async (user) => {
     setSelectedUser(user);
     try {
-      const response = await axios.get('http://localhost:5000/api/messages/conversation', {
+      const response = await axios.get(`${API_BASE_URL}/messages/conversation`, {
         params: {
           user1: userId,
           user2: user._id,

@@ -18,6 +18,8 @@ import {
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+
 const FoodManagement = () => {
   const [kids, setKids] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -29,7 +31,7 @@ const FoodManagement = () => {
   useEffect(() => {
     const fetchPatientRecords = async () => {
       try {
-        const response = await axios.get('http://localhost:5000/api/patient-records');
+        const response = await axios.get(`${API_BASE_URL}/patient-records`);
         setKids(response.data); // Assuming response.data contains the array of patients
       } catch (error) {
         console.error('Error fetching patient records:', error);

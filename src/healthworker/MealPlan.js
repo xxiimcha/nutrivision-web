@@ -15,6 +15,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import moment from 'moment';
 
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+
 const MealPlan = () => {
   const { id, week } = useParams(); 
   const [mealPlan, setMealPlan] = useState({});
@@ -29,8 +31,8 @@ const MealPlan = () => {
       try {
         if (id && week) {
           const [mealPlanResponse, patientResponse] = await Promise.all([
-            axios.get(`http://localhost:5000/api/meal-plans/${id}/${week}`),
-            axios.get(`http://localhost:5000/api/patient-records/${id}`),
+            axios.get(`${API_BASE_URL}/meal-plans/${id}/${week}`),
+            axios.get(`${API_BASE_URL}/patient-records/${id}`),
           ]);
 
           setMealPlan(mealPlanResponse.data);
