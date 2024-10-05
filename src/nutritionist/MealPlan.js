@@ -29,6 +29,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import moment from 'moment';
 
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 const MealPlan = () => {
   const { id, week } = useParams(); 
   const [mealPlan, setMealPlan] = useState({});
@@ -49,8 +50,8 @@ const MealPlan = () => {
       try {
         if (id && week) {
           const [mealPlanResponse, patientResponse] = await Promise.all([
-            axios.get(`http://localhost:5000/api/meal-plans/${id}/${week}`),
-            axios.get(`http://localhost:5000/api/patient-records/${id}`),
+            axios.get(`${API_BASE_URL}/meal-plans/${id}/${week}`),
+            axios.get(`${API_BASE_URL}/patient-records/${id}`),
           ]);
 
           setMealPlan(mealPlanResponse.data);
@@ -79,10 +80,10 @@ const MealPlan = () => {
       const updatedMealPlan = { ...mealPlan };
       updatedMealPlan[day].status = 'sent'; 
     
-      await axios.post(`http://localhost:5000/api/meal-plans/${id}/${week}`, updatedMealPlan);
+      await axios.post(`${API_BASE_URL}/meal-plans/${id}/${week}`, updatedMealPlan);
       setMealPlan(updatedMealPlan);
     
-      const patientResponse = await axios.get(`http://localhost:5000/api/patient-records/${id}`);
+      const patientResponse = await axios.get(`${API_BASE_URL}/patient-records/${id}`);
       const userId = patientResponse.data.userId; 
     
       const notification = {
@@ -94,7 +95,7 @@ const MealPlan = () => {
         updated_at: new Date().toISOString(),
       };
     
-      await axios.post(`http://localhost:5000/api/notifications`, notification);
+      await axios.post(`${API_BASE_URL}/notifications`, notification);
     
       console.log('Meal plan sent and notification created successfully.');
     } catch (error) {
@@ -144,7 +145,7 @@ const MealPlan = () => {
     updatedMealPlan[selectedDay][selectedMealType] = mealDetails;
 
     try {
-      await axios.post(`http://localhost:5000/api/meal-plans/${id}/${week}`, updatedMealPlan);
+      await axios.post(`${API_BASE_URL}/meal-plans/${id}/${week}`, updatedMealPlan);
       setMealPlan(updatedMealPlan);
       handleCloseModal();
     } catch (error) {
@@ -160,7 +161,7 @@ const MealPlan = () => {
     }
 
     try {
-      await axios.post(`http://localhost:5000/api/meal-plans/${id}/${week}`, updatedMealPlan);
+      await axios.post(`${API_BASE_URL}/meal-plans/${id}/${week}`, updatedMealPlan);
       setMealPlan(updatedMealPlan);
     } catch (error) {
       console.error('Error approving meal:', error);

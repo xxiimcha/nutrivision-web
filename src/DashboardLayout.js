@@ -35,6 +35,9 @@ import axios from 'axios';
 
 const drawerWidth = 240;
 
+// Get the API base URL from environment variables
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+
 const CustomListItem = styled(ListItem)(({ theme }) => ({
   backgroundColor: '#D9E5F7',
   marginBottom: theme.spacing(1),
@@ -66,7 +69,7 @@ function DashboardLayout(props) {
   useEffect(() => {
     const fetchProfileData = async () => {
       try {
-        const response = await axios.get(`http://localhost:5000/api/admins/${userId}`); // Adjust the URL to match your API endpoint
+        const response = await axios.get(`${API_BASE_URL}/admins/${userId}`); // Adjust the URL to match your API endpoint
         const user = response.data;
 
         if (user.profilePicture) {
@@ -86,7 +89,7 @@ function DashboardLayout(props) {
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
-        const response = await axios.get(`http://localhost:5000/api/notifications/${userId}`);
+        const response = await axios.get(`${API_BASE_URL}/notifications/${userId}`);
         setNotifications(response.data);
         setUnreadCount(response.data.filter((notification) => !notification.read).length);
       } catch (error) {
@@ -127,7 +130,7 @@ function DashboardLayout(props) {
 
   const handleMarkAsRead = async (id) => {
     try {
-      await axios.put(`http://localhost:5000/api/notifications/${id}/read`);
+      await axios.put(`${API_BASE_URL}/notifications/${id}/read`);
       setNotifications((prevNotifications) =>
         prevNotifications.map((notification) =>
           notification._id === id ? { ...notification, read: true } : notification

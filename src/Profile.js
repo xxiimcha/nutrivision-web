@@ -35,11 +35,14 @@ const Profile = () => {
   // New state for form errors
   const [errors, setErrors] = useState({});
 
+  // Get the API base URL from environment variables
+  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+
   useEffect(() => {
     // Fetch the admin data using the userId
     const fetchUserData = async () => {
       try {
-        const response = await fetch(`http://localhost:5000/api/admins/${userId}`);
+        const response = await fetch(`${API_BASE_URL}/admins/${userId}`);
         if (!response.ok) {
           throw new Error('Network response was not ok');
         }
@@ -102,7 +105,7 @@ const Profile = () => {
     if (email !== userData.email) {
       // If email is changed, send OTP
       try {
-        const response = await fetch(`http://localhost:5000/api/admins/${userId}`, {
+        const response = await fetch(`${API_BASE_URL}/admins/${userId}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -130,7 +133,7 @@ const Profile = () => {
 
   const updatePersonalInfo = async () => {
     try {
-      const response = await fetch(`http://localhost:5000/api/admins/${userId}`, {
+      const response = await fetch(`${API_BASE_URL}/admins/${userId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -153,7 +156,7 @@ const Profile = () => {
 
   const handleVerifyOtp = async () => {
     try {
-      const response = await fetch(`http://localhost:5000/api/admins/${userId}/verify-otp`, {
+      const response = await fetch(`${API_BASE_URL}/admins/${userId}/verify-otp`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -184,7 +187,7 @@ const Profile = () => {
     setErrors({});
 
     try {
-      const response = await fetch(`http://localhost:5000/api/admins/${userId}/change-password`, {
+      const response = await fetch(`${API_BASE_URL}/admins/${userId}/change-password`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -238,7 +241,7 @@ const Profile = () => {
         // Handle successful uploads on complete
         getDownloadURL(uploadTask.snapshot.ref).then(async (downloadURL) => {
           try {
-            const response = await fetch(`http://localhost:5000/api/admins/${userId}/upload-profile-picture`, {
+            const response = await fetch(`${API_BASE_URL}/admins/${userId}/upload-profile-picture`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',

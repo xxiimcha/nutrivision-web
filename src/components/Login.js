@@ -21,6 +21,9 @@ import logo from '../images/logo.png';
 
 const defaultTheme = createTheme();
 
+// Get the API base URL from environment variables
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+
 export default function SignInSide() {
   const { setRole, setUserId, setName, setEmail } = useContext(UserContext);
   const [step, setStep] = useState('login');
@@ -37,7 +40,7 @@ export default function SignInSide() {
     const password = data.get('password');
 
     try {
-      const response = await axios.post('http://localhost:5000/api/login', { email, password });
+      const response = await axios.post(`${API_BASE_URL}/login`, { email, password });
       if (response.status === 200) {
         setLoginEmail(email);
         if (response.data.otpRequired) {
@@ -68,7 +71,7 @@ export default function SignInSide() {
   const handleOtpSubmit = async (event) => {
     event.preventDefault();
     try {
-      const response = await axios.post('http://localhost:5000/api/login/verify-otp', { email: loginEmail, otp });
+      const response = await axios.post(`${API_BASE_URL}/login/verify-otp`, { email: loginEmail, otp });
       if (response.status === 200) {
         const { role, _id, name, email } = response.data;
         console.log('User Role:', role);
@@ -95,7 +98,7 @@ export default function SignInSide() {
 
   const handleForgotPasswordSubmit = async () => {
     try {
-      await axios.post('http://localhost:5000/api/login/forgot-password', { email: forgotPasswordEmail });
+      await axios.post(`${API_BASE_URL}/login/forgot-password`, { email: forgotPasswordEmail });
       alert('Password reset link sent to your email');
       setForgotPasswordOpen(false);
     } catch (error) {
@@ -103,7 +106,7 @@ export default function SignInSide() {
       alert('Failed to send password reset link');
     }
   };
-
+  
   return (
     <ThemeProvider theme={defaultTheme}>
       <Grid container component="main" sx={{ height: '100vh' }}>
