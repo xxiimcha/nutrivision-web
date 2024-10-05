@@ -15,18 +15,24 @@ const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(bodyParser.json());
-app.use(cors());
+app.use(cors({
+  origin: process.env.REACT_APP_API_BASE_URL || "*",  // Restrict CORS to your frontend URL in production
+  methods: ["GET", "POST"]
+}));
 
-// MongoDB connection
-mongoose.connect('mongodb+srv://nutrivision:nutrivision123@nutrivision.04lzv.mongodb.net/nutrivision?retryWrites=true&w=majority&appName=nutrivision', {
+// MongoDB connection using environment variables
+mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
-}).then(() => {
+})
+.then(() => {
   console.log('MongoDB connected');
-}).catch((err) => {
+})
+.catch((err) => {
   console.error('MongoDB connection error:', err);
 });
 
+// Serve static files from 'uploads' folder
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Routes
@@ -48,7 +54,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/notifications', notificationsRouter);
 
-// Serve static assets if in production
+// Serve React static assets if in production
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static('client/build'));
 
@@ -63,7 +69,7 @@ const server = http.createServer(app);
 // Initialize Socket.io
 const io = new Server(server, {
   cors: {
-    origin: "*", // Adjust origin as needed
+    origin: process.env.CLIENT_URL || "*", // Restrict CORS to your frontend URL in production
     methods: ["GET", "POST"]
   }
 });
@@ -84,31 +90,25 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Handle call initiation from web with callType
+  // Handle call initiation
   socket.on('call-user', async ({ callerId, receiverId, callType }) => {
-    console.log('Connected users:', connectedUsers);  // Check if the receiver is connected
+    console.log('Connected users:', connectedUsers);
 
-    // Find the caller's admin info (name)
     const caller = await Admin.findById(callerId).select('firstName lastName');
-
     const callSignal = new CallSignal({
       callerId,
       receiverId,
-      callType, // Ensure callType (audio or video) is saved
-      status: 'calling', // Initial status is "calling"
+      callType,
+      status: 'calling',
     });
 
     if (connectedUsers[receiverId]) {
-      // Emit the incoming call event along with the callType
       io.to(connectedUsers[receiverId]).emit('incoming-call', { callerId, callType });
       console.log(`Call initiated from ${caller.firstName} ${caller.lastName} to ${receiverId} as a ${callType} call`);
     } else {
       console.log(`Receiver with ID ${receiverId} is not connected`);
-      // Mark as "missed" since the receiver is not connected
       callSignal.status = 'missed';
-      console.log(`Missed ${callType} call from ${caller.firstName} ${caller.lastName} to ${receiverId}`);
 
-      // Create a notification for the missed call with the caller's name
       const missedCallNotification = new Notification({
         userId: receiverId,
         title: 'Missed Call',
@@ -116,7 +116,6 @@ io.on('connection', (socket) => {
       });
 
       try {
-        // Save the missed call notification
         await missedCallNotification.save();
         console.log('Missed call notification saved');
       } catch (error) {
@@ -124,56 +123,12 @@ io.on('connection', (socket) => {
       }
     }
 
-    // Save the call signal (either as "calling" or "missed")
     await callSignal.save();
-  });
-
-  // Handle call acceptance
-  socket.on('accept-call', async ({ callerId, receiverId }) => {
-    if (connectedUsers[callerId]) {
-      io.to(connectedUsers[callerId]).emit('call-accepted');
-
-      // Update the call status to "accepted"
-      await CallSignal.findOneAndUpdate(
-        { callerId, receiverId, status: 'calling' },
-        { status: 'accepted' }
-      );
-      console.log(`Call accepted between ${callerId} and ${receiverId}`);
-    }
-  });
-
-  // Handle call decline
-  socket.on('decline-call', async ({ callerId, receiverId }) => {
-    if (connectedUsers[callerId]) {
-      io.to(connectedUsers[callerId]).emit('call-declined');
-
-      // Update the call status to "declined"
-      await CallSignal.findOneAndUpdate(
-        { callerId, receiverId, status: 'calling' },
-        { status: 'declined' }
-      );
-      console.log(`Call declined between ${callerId} and ${receiverId}`);
-    }
-  });
-
-  // Handle call ending
-  socket.on('end-call', async ({ callerId, receiverId }) => {
-    // Notify both users that the call has ended
-    if (connectedUsers[callerId]) io.to(connectedUsers[callerId]).emit('call-ended');
-    if (connectedUsers[receiverId]) io.to(connectedUsers[receiverId]).emit('call-ended');
-
-    // Update the call status to "ended"
-    await CallSignal.findOneAndUpdate(
-      { callerId, receiverId, status: { $in: ['accepted', 'calling'] } },
-      { status: 'ended' }
-    );
-    console.log(`Call ended between ${callerId} and ${receiverId}`);
   });
 
   // Handle disconnection
   socket.on('disconnect', () => {
     console.log('User disconnected:', socket.id);
-    // Remove disconnected user from connectedUsers
     for (let userId in connectedUsers) {
       if (connectedUsers[userId] === socket.id) {
         delete connectedUsers[userId];
