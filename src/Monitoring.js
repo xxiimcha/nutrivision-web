@@ -45,7 +45,7 @@ const Monitoring = () => {
   useEffect(() => {
     const fetchRecords = async () => {
       try {
-        const response = await axios.get('${API_BASE_URL}/patient-records');
+        const response = await axios.get(`${API_BASE_URL}/patient-records`);
         const updatedData = await Promise.all(response.data.map(async (record) => {
           const goalWeight = getGoalWeight(record.ageInMonths, record.height);
   

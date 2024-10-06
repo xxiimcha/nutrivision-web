@@ -18,6 +18,7 @@ import {
 import { DataGrid } from '@mui/x-data-grid';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import AddIcon from '@mui/icons-material/Add';
 import axios from 'axios';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -31,8 +32,8 @@ function Admin() {
   });
   const [admins, setAdmins] = useState([]);
   const [open, setOpen] = useState(false);
-  const [editMode, setEditMode] = useState(false); // To track if we are in edit mode
-  const [selectedAdminId, setSelectedAdminId] = useState(null); // To track the selected admin's ID
+  const [editMode, setEditMode] = useState(false); 
+  const [selectedAdminId, setSelectedAdminId] = useState(null);
   const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
   const [adminToDelete, setAdminToDelete] = useState(null);
 
@@ -40,19 +41,19 @@ function Admin() {
     const fetchAdmins = async () => {
       try {
         const response = await axios.get('http://localhost:5000/api/admins');
-        const adminsWithId = response.data.map((admin) => ({
+        const adminsWithIncrementalId = response.data.map((admin, index) => ({
           ...admin,
-          id: admin._id,
+          id: index + 1, // Use index + 1 to make the ID start from 1
         }));
-        setAdmins(adminsWithId);
+        setAdmins(adminsWithIncrementalId);
       } catch (error) {
         console.error("Error fetching admins:", error);
         toast.error('Failed to fetch admins.');
       }
     };
-
+  
     fetchAdmins();
-  }, []);
+  }, []);  
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -67,7 +68,6 @@ function Admin() {
     const { firstName, lastName, email, role } = adminDetails;
 
     if (editMode) {
-      // Update existing admin
       try {
         const response = await axios.put(`http://localhost:5000/api/admins/${selectedAdminId}`, {
           firstName,
@@ -90,7 +90,6 @@ function Admin() {
         toast.error('Failed to update admin.');
       }
     } else {
-      // Create new admin
       try {
         const response = await axios.post('http://localhost:5000/api/admins', {
           firstName,
@@ -182,22 +181,43 @@ function Admin() {
   ];
 
   return (
-    <Box p={2}>
+    <Box p={4} bgcolor="#f5f5f5">
       <ToastContainer />
-      <Box mb={2} display="flex" justifyContent="space-between" alignItems="center">
-        <Typography variant="h4" component="h2">
+      <Box mb={4} display="flex" justifyContent="space-between" alignItems="center">
+        <Typography variant="h4" component="h2" color="primary">
           Admin Management
         </Typography>
-        <Button variant="contained" color="primary" onClick={() => setOpen(true)}>
+        <Button
+          variant="contained"
+          color="primary"
+          startIcon={<AddIcon />}
+          onClick={() => setOpen(true)}
+        >
           Add Admin
         </Button>
       </Box>
-      <Box display="flex" flexDirection="column">
-        <Dialog open={open} onClose={() => setOpen(false)}>
-          <DialogTitle>{editMode ? 'Edit Admin' : 'Add New Admin'}</DialogTitle>
+      <Box display="flex" flexDirection="column" alignItems="center" bgcolor="#fff" p={4} borderRadius={4} boxShadow={3}>
+        <Dialog
+          open={open}
+          onClose={() => setOpen(false)}
+          maxWidth="md" // Wider dialog (md or lg)
+          fullWidth={true} // Full width for better UI experience
+          PaperProps={{
+            style: {
+              borderRadius: 12, // Rounded corners for a modern look
+              padding: '20px', // Padding around the content
+              boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.1)', // Add subtle shadow
+            },
+          }}
+        >
+          <DialogTitle>
+            <Typography variant="h5" component="h2" color="primary" align="center">
+              {editMode ? 'Edit Admin' : 'Add New Admin'}
+            </Typography>
+          </DialogTitle>
           <DialogContent>
             <form onSubmit={handleSubmit}>
-              <Box display="flex" flexDirection="column" mt={2}>
+              <Box display="flex" flexDirection="column" gap={2}>
                 <TextField
                   label="First Name"
                   name="firstName"
@@ -243,7 +263,7 @@ function Admin() {
             </form>
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setOpen(false)} color="primary">
+            <Button onClick={() => setOpen(false)} color="secondary">
               Cancel
             </Button>
             <Button onClick={handleSubmit} variant="contained" color="primary">
@@ -251,6 +271,8 @@ function Admin() {
             </Button>
           </DialogActions>
         </Dialog>
+
+
         <Dialog
           open={deleteConfirmationOpen}
           onClose={handleCancelDelete}
@@ -272,11 +294,25 @@ function Admin() {
             </Button>
           </DialogActions>
         </Dialog>
+
         <Box mt={4} style={{ height: 400, width: '100%' }}>
-          <Typography variant="h5" component="h3" gutterBottom>
+          <Typography variant="h5" component="h3" gutterBottom color="primary">
             Accounts
           </Typography>
-          <DataGrid rows={admins} columns={columns} pageSize={5} />
+          <DataGrid
+            rows={admins}
+            columns={columns}
+            pageSize={5}
+            sx={{
+              "& .MuiDataGrid-columnHeaders": {
+                backgroundColor: "#1976d2",
+                color: "#fff",
+              },
+              "& .MuiDataGrid-row:nth-of-type(odd)": {
+                backgroundColor: "#f5f5f5",
+              },
+            }}
+          />
         </Box>
       </Box>
     </Box>

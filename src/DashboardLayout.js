@@ -205,6 +205,13 @@ function DashboardLayout(props) {
               </ListItemIcon>
               <ListItemText primary="Admin" />
             </CustomListItem>
+            {/* Add Activity Log Nav Item */}
+            <CustomListItem sx={{ pl: 4 }} button component={Link} to="/dashboard/activity-log">
+              <ListItemIcon>
+                <DashboardIcon />
+              </ListItemIcon>
+              <ListItemText primary="Activity Log" />
+            </CustomListItem>
           </List>
         </Collapse>
 

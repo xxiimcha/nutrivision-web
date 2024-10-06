@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import axios from 'axios';
 import {
   Table,
@@ -20,13 +20,15 @@ import {
   Typography,
   InputAdornment,
   CircularProgress,
-  IconButton
+  Chip
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
+import { UserContext } from './context/UserContext'; // Import UserContext
 
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL; // Get API URL from environment variable
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
-function Residences({ loggedInUser }) {
+function Residences() {
+  const { email } = useContext(UserContext); // Access user email from UserContext
   const [residenceAccounts, setResidenceAccounts] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
@@ -34,61 +36,77 @@ function Residences({ loggedInUser }) {
   const [password, setPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [loading, setLoading] = useState(false);
-  
+
+  // Fetch users data
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        setLoading(true); // Set loading state
-        const response = await axios.get(`${API_BASE_URL}/users`); // Fetch data from the correct API URL
+        setLoading(true);
+        console.log('Fetching users...');
+        const response = await axios.get(`${API_BASE_URL}/users`);
         const users = response.data.map((user) => ({
           ...user,
-          status: user.status || 'active', // Default status to 'active' if not available
+          status: user.status || 'active',
         }));
         setResidenceAccounts(users);
+        console.log('Users fetched:', users);
       } catch (error) {
         console.error('Error fetching users:', error);
       } finally {
-        setLoading(false); // Stop loading state
+        setLoading(false);
       }
     };
     fetchUsers();
   }, []);
 
+  // Open password confirmation dialog
   const handleStatusChange = (user) => {
+    console.log('Selected user for status change:', user);
     setSelectedUser(user);
-    setPassword(''); // Reset password input
-    setPasswordDialogOpen(true); // Open password dialog
+    setPassword('');
+    setPasswordDialogOpen(true);
   };
 
+  // Close password confirmation dialog
   const handlePasswordDialogClose = () => {
+    console.log('Closing password confirmation dialog');
     setPasswordDialogOpen(false);
     setSelectedUser(null);
-    setPasswordError(''); // Clear error
+    setPasswordError('');
   };
 
+  // Verify password and update status
   const handlePasswordSubmit = async () => {
+    if (!email) {
+      console.log('Logged-in user email missing');
+      setPasswordError('Logged-in user information is missing.');
+      return;
+    }
+
     setLoading(true);
     try {
-      const response = await axios.post(`${API_BASE_URL}/login/verify-password`, {
-        email: loggedInUser.email,  // Use the logged-in user's email
-        password,
+      console.log('Verifying password for email:', email);
+      const response = await axios.post(`${API_BASE_URL}/login/verify-password-and-update-status`, {
+        email, // Use the email from UserContext (logged-in user)
+        password, // The password entered by the user
+        userId: selectedUser._id, // The selected user to update status
+        newStatus: selectedUser.status === 'active' ? 'inactive' : 'active' // Toggle status
       });
 
+      console.log('Response from password verification:', response.data);
+
       if (response.data.success) {
-        const updatedStatus = selectedUser.status === 'active' ? 'inactive' : 'active';
-
-        const updateResponse = await axios.put(`${API_BASE_URL}/users/${selectedUser._id}/status`, {
-          status: updatedStatus,
-        });
-
+        // Update the residence accounts list with the new status
         const updatedAccounts = residenceAccounts.map((account) =>
           account._id === selectedUser._id
-            ? { ...account, status: updatedStatus }
+            ? { ...account, status: response.data.updatedStatus }
             : account
         );
-        setResidenceAccounts(updatedAccounts); // Update the UI with the new status
-        handlePasswordDialogClose();
+        setResidenceAccounts(updatedAccounts);
+        console.log('Updated accounts:', updatedAccounts);
+        handlePasswordDialogClose(); // Close the dialog after successful operation
       } else {
+        console.log('Password incorrect. Please try again.');
         setPasswordError('Incorrect password. Please try again.');
       }
     } catch (error) {
@@ -100,10 +118,10 @@ function Residences({ loggedInUser }) {
   };
 
   const handleSearchChange = (e) => {
-    setSearchQuery(e.target.value); // Update the search query state
+    setSearchQuery(e.target.value);
+    console.log('Search query changed:', e.target.value);
   };
 
-  // Filter residence accounts by name based on search query
   const filteredAccounts = residenceAccounts.filter((account) =>
     `${account.firstName} ${account.lastName}`.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -114,8 +132,7 @@ function Residences({ loggedInUser }) {
         <Typography variant="h5" component="div" gutterBottom>
           Residence Accounts
         </Typography>
-        
-        {/* Search Field */}
+
         <TextField
           placeholder="Search by name"
           variant="outlined"
@@ -131,8 +148,7 @@ function Residences({ loggedInUser }) {
             ),
           }}
         />
-        
-        {/* Display the Residence Accounts Table */}
+
         <TableContainer component={Paper} sx={{ marginTop: 2 }}>
           {loading ? (
             <CircularProgress sx={{ display: 'block', margin: 'auto' }} />
@@ -143,7 +159,7 @@ function Residences({ loggedInUser }) {
                   <TableCell>No.</TableCell>
                   <TableCell>First Name</TableCell>
                   <TableCell>Last Name</TableCell>
-                  <TableCell>Phone</TableCell>
+                  <TableCell>Email</TableCell>
                   <TableCell>Status</TableCell>
                   <TableCell>Actions</TableCell>
                 </TableRow>
@@ -152,11 +168,16 @@ function Residences({ loggedInUser }) {
                 {filteredAccounts.length > 0 ? (
                   filteredAccounts.map((account, index) => (
                     <TableRow key={index}>
-                      <TableCell>{index + 1}</TableCell> 
-                      <TableCell>{account.firstName}</TableCell>
-                      <TableCell>{account.lastName}</TableCell>
-                      <TableCell>{account.phone}</TableCell>
-                      <TableCell>{account.status}</TableCell>
+                      <TableCell>{index + 1}</TableCell>
+                      <TableCell>{account.firstName || 'Unknown'}</TableCell>
+                      <TableCell>{account.lastName || 'Unknown'}</TableCell>
+                      <TableCell>{account.email}</TableCell>
+                      <TableCell>
+                        <Chip
+                          label={account.status === 'active' ? 'Active' : 'Inactive'}
+                          color={account.status === 'active' ? 'success' : 'default'}
+                        />
+                      </TableCell>
                       <TableCell>
                         <Button
                           variant="contained"
@@ -180,7 +201,6 @@ function Residences({ loggedInUser }) {
           )}
         </TableContainer>
 
-        {/* Password Confirmation Dialog */}
         <Dialog open={passwordDialogOpen} onClose={handlePasswordDialogClose}>
           <DialogTitle>Password Confirmation</DialogTitle>
           <DialogContent>

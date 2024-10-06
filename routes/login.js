@@ -1,37 +1,53 @@
 const express = require('express');
+const mongoose = require('mongoose'); // Import mongoose
 const Admin = require('../models/Admin');
+const User = require('../models/User');
+const Log = require('../models/Log'); // Import the Log model
 const sendOtpToEmail = require('../utils/sendOtpToEmail');
 const crypto = require('crypto');
 const sendPasswordResetEmail = require('../utils/sendPasswordResetEmail'); // A utility function to send emails
 
 const router = express.Router();
 
-// Default super admin credentials (in a real app, store these securely, not in code)
-const superAdminEmail = "superadmin@gmail.com";
-const superAdminPassword = "SecurePassword123!";
-
 // Login route
 router.post('/', async (req, res) => {
   const { email, password } = req.body;
 
-  // Check for super admin credentials
-  if (email === superAdminEmail) {
-    if (password === superAdminPassword) {
-      // No OTP required for super admin, directly login
-      console.log(`Super Admin logged in with email: ${email}`);
-      return res.status(200).send({ email, role: 'Super Admin', otpRequired: false, _id: 'super-admin-id', name: 'Super Admin' });
-    } else {
-      return res.status(401).send({ message: 'Invalid credentials' });
-    }
-  }
-
   try {
-    // Find the admin by email
+    // Find the admin by email (including Super Admin)
     const admin = await Admin.findOne({ email });
+
     if (admin) {
-      // Compare the provided password with the stored plain text password
+      // Check if the provided password matches the stored plain text password (improve by hashing)
       if (password === admin.password) {
-        // Generate OTP for the admin
+        // If Super Admin logs in
+        if (admin.role === 'Super Admin') {
+          console.log(`Super Admin logged in with email: ${email}`);
+
+          // Example for logging the Super Admin login action
+          try {
+            const log = new Log({
+              actionType: 'LOGIN',
+              user: admin._id,
+              description: 'Super Admin logged in.',
+            });
+
+            await log.save();
+            console.log('Log inserted successfully'); // Log success message
+          } catch (error) {
+            console.error('Error inserting log:', error); // Log the error message
+          }
+
+          return res.status(200).send({
+            email: admin.email,
+            role: admin.role,
+            otpRequired: false,
+            _id: admin._id,
+            name: `${admin.firstName} ${admin.lastName}`,
+          });
+        }
+
+        // If regular admin logs in, generate OTP
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
         // Store OTP and expiration in the admin document
@@ -45,8 +61,22 @@ router.post('/', async (req, res) => {
         console.log(`Admin logged in with email: ${email}`);
         console.log(`OTP generated and sent to ${admin.email}: ${otp}`);
 
+        // Log the login and OTP generation
+        const log = new Log({
+          actionType: 'LOGIN',
+          user: admin._id,
+          description: `Admin logged in, OTP sent to ${admin.email}`,
+        });
+        await log.save();
+
         const fullName = `${admin.firstName} ${admin.lastName}`;
-        return res.status(200).send({ otpRequired: true, email: admin.email, role: admin.role, _id: admin._id, name: fullName });
+        return res.status(200).send({
+          otpRequired: true,
+          email: admin.email,
+          role: admin.role,
+          _id: admin._id,
+          name: fullName,
+        });
       } else {
         console.log('Invalid credentials for email:', email);
         return res.status(401).send({ message: 'Invalid credentials' });
@@ -70,13 +100,12 @@ router.post('/verify-otp', async (req, res) => {
   try {
     // Find the admin by email
     const admin = await Admin.findOne({ email });
-    
+
     if (admin) {
       console.log(`Admin found for email: ${email}`);
       console.log(`Stored OTP: ${admin.otp}, Expiry: ${admin.otpExpires}`);
       console.log(`Received OTP: ${otp}`);
-      console.log(`Current Time: ${Date.now()}, OTP Expires At: ${admin.otpExpires}`);
-      
+
       if (admin.otp === otp && admin.otpExpires > Date.now()) {
         // OTP is correct and not expired
         console.log(`OTP matched for admin: ${email}`);
@@ -84,10 +113,32 @@ router.post('/verify-otp', async (req, res) => {
         admin.otpExpires = undefined;
         await admin.save();
 
+        // Log the OTP verification success
+        const log = new Log({
+          actionType: 'OTP_VERIFIED',
+          user: admin._id,
+          description: `OTP verified successfully for admin: ${email}`,
+        });
+        await log.save();
+
         const fullName = `${admin.firstName} ${admin.lastName}`;
-        return res.status(200).send({ role: admin.role, _id: admin._id, name: fullName, email: admin.email });
+        return res.status(200).send({
+          role: admin.role,
+          _id: admin._id,
+          name: fullName,
+          email: admin.email,
+        });
       } else {
         console.log(`OTP verification failed for admin: ${email}.`);
+
+        // Log the OTP verification failure
+        const log = new Log({
+          actionType: 'OTP_FAILED',
+          user: admin._id,
+          description: `Failed OTP verification for admin: ${email}`,
+        });
+        await log.save();
+
         return res.status(401).send({ message: 'Invalid or expired OTP' });
       }
     } else {
@@ -126,6 +177,15 @@ router.post('/forgot-password', async (req, res) => {
     await sendPasswordResetEmail(admin.email, resetLink);
 
     console.log(`Password reset link generated and sent to ${admin.email}: ${resetLink}`);
+
+    // Log the password reset request
+    const log = new Log({
+      actionType: 'PASSWORD_RESET_REQUEST',
+      user: admin._id,
+      description: `Password reset requested for ${admin.email}`,
+    });
+    await log.save();
+
     return res.status(200).send({ message: 'Password reset link sent to your email' });
   } catch (error) {
     console.error('Error during password reset:', error);
@@ -151,6 +211,14 @@ router.post('/reset-password', async (req, res) => {
     admin.resetTokenExpires = undefined;
     await admin.save();
 
+    // Log the password reset action
+    const log = new Log({
+      actionType: 'PASSWORD_RESET',
+      user: admin._id,
+      description: `Password successfully reset for ${admin.email}`,
+    });
+    await log.save();
+
     res.status(200).send({ message: 'Password reset successfully' });
   } catch (error) {
     console.error('Error resetting password:', error);
@@ -158,29 +226,39 @@ router.post('/reset-password', async (req, res) => {
   }
 });
 
-// Verify password route
-router.post('/verify-password', async (req, res) => {
-  const { email, password } = req.body;
-
-  // Check for super admin credentials
-  if (email === superAdminEmail) {
-    if (password === superAdminPassword) {
-      return res.status(200).send({ success: true, role: 'Super Admin' });
-    } else {
-      return res.status(401).send({ success: false, message: 'Invalid Super Admin credentials' });
-    }
-  }
+router.post('/verify-password-and-update-status', async (req, res) => {
+  const { email, password, userId, newStatus } = req.body;
 
   try {
+    // Step 1: Verify the password of the logged-in user (the one performing the action)
+    console.log(`Verifying password for email: ${email}`);
     const admin = await Admin.findOne({ email });
-    if (admin && password === admin.password) { // Ideally use bcrypt for password comparison
-      return res.status(200).send({ success: true });
-    } else {
-      return res.status(401).send({ success: false, message: 'Invalid password' });
+
+    if (!admin) {
+      console.log('Admin not found');
+      return res.status(404).send({ success: false, message: 'Admin not found' });
     }
+
+    if (password !== admin.password) { // Add hashing for real use
+      console.log('Incorrect password');
+      return res.status(401).send({ success: false, message: 'Incorrect password' });
+    }
+
+    const userToUpdate = await User.findById(userId); // Assuming User model represents the `users` table
+    if (!userToUpdate) {
+      console.log(`User with ID ${userId} not found`);
+      return res.status(404).send({ success: false, message: 'User not found' });
+    }
+
+    // Step 3: Update the status of the selected user
+    userToUpdate.status = newStatus;
+    await userToUpdate.save();
+
+    // Send success response
+    res.status(200).send({ success: true, updatedStatus: newStatus });
   } catch (error) {
-    console.error('Error during password verification:', error);
-    return res.status(500).send({ success: false, message: 'Internal server error' });
+    console.error('Error verifying password or updating status:', error);
+    res.status(500).send({ success: false, message: 'Internal server error' });
   }
 });
 

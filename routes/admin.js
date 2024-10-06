@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const Admin = require('../models/Admin');
+const User = require('../models/User'); // Assuming you have a User model
 const generatePassword = require('../utils/generatePassword');
 const sendEmail = require('../utils/sendEmail');
 
@@ -30,6 +31,19 @@ const upload = multer({
   },
   limits: {
     fileSize: 1024 * 1024, // Limit file size to 1MB
+  }
+});
+
+// Fetch user and admin counts
+router.get('/admin-user-count', async (req, res) => {
+  try {
+    const adminCount = await Admin.countDocuments();
+    const userCount = await User.countDocuments(); // Assuming you have a User model
+
+    res.status(200).json({ admins: adminCount, users: userCount });
+  } catch (error) {
+    console.error('Error fetching counts:', error);
+    res.status(500).json({ message: 'Internal server error' });
   }
 });
 
@@ -68,7 +82,7 @@ router.post('/', async (req, res) => {
 
 // Upload profile picture
 router.post('/:id/upload-profile-picture', async (req, res) => {
-  const { profilePicture } = req.body; // Get the Firebase Storage URL from the request body
+  const { profilePicture } = req.body;
 
   try {
     const admin = await Admin.findById(req.params.id);
@@ -76,13 +90,12 @@ router.post('/:id/upload-profile-picture', async (req, res) => {
       return res.status(404).json({ message: 'Admin not found' });
     }
 
-    // Delete the old profile picture if it exists
+    // Delete the old profile picture if it exists (Firebase Storage would need separate handling)
     if (admin.profilePicture) {
-      // Note: Firebase Storage does not support direct deletion from your server.
-      // You'd need to manage it within your Firebase project if required.
+      // Handle deletion logic here if needed
     }
 
-    admin.profilePicture = profilePicture; // Save the Firebase Storage URL to the database
+    admin.profilePicture = profilePicture;
     await admin.save();
 
     res.json({ profilePicture: admin.profilePicture });
@@ -106,16 +119,16 @@ router.get('/', async (req, res) => {
 // Retrieve an admin by ID
 router.get('/:id', async (req, res) => {
   const { id } = req.params;
-    try {
-      const admin = await Admin.findById(id);
-      if (!admin) {
-        return res.status(404).json({ message: 'Admin not found' });
-      }
-      res.status(200).json(admin);
-    } catch (error) {
-      console.error('Error fetching admin:', error);
-      res.status(500).json({ message: 'Internal server error' });
+  try {
+    const admin = await Admin.findById(id);
+    if (!admin) {
+      return res.status(404).json({ message: 'Admin not found' });
     }
+    res.status(200).json(admin);
+  } catch (error) {
+    console.error('Error fetching admin:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
 });
 
 // Update an admin by ID
@@ -135,7 +148,7 @@ router.put('/:id', async (req, res) => {
     // If email is changed, generate OTP and send it, don't update the email yet
     if (email && email !== admin.email) {
       const otp = crypto.randomBytes(3).toString('hex');
-      const otpExpires = Date.now() + 15 * 60 * 1000; // 15 minutes expiration
+      const otpExpires = Date.now() + 15 * 60 * 1000;
 
       admin.otp = otp;
       admin.otpExpires = otpExpires;

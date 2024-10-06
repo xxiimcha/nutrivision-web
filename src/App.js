@@ -15,6 +15,7 @@ import Records from './components/Records';
 import Monitoring from './Monitoring';
 import Status from './Status';
 import Profile from './Profile';
+import ActivityLog from './ActivityLog'; // Ensure correct path here
 import { UserProvider, UserContext } from './context/UserContext';
 
 // Nutritionist components
@@ -63,6 +64,7 @@ function AppRoutes() {
             <Route path="admin" element={<Admin />} />
             <Route path="status" element={<Status />} />
             <Route path="records" element={<Records />} />
+            <Route path="activity-log" element={<ActivityLog />} /> {/* Activity Log Route */}
           </>
         )}
 

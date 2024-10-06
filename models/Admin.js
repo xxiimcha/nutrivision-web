@@ -35,6 +35,12 @@ const AdminSchema = new Schema({
     type: String,
     required: false // Path to the profile picture, not required as default
   },
+  status: {
+    type: String,
+    enum: ['active', 'inactive'], // Restricting status to either 'active' or 'inactive'
+    default: 'active', // Default status is 'active'
+    required: true
+  },
   createdAt: {
     type: Date,
     default: Date.now

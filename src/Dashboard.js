@@ -1,68 +1,72 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
 import Typography from '@mui/material/Typography';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Paper, Box, Grid, ButtonGroup, Button, Card, CardContent } from '@mui/material';
 import axios from 'axios';
+import { UserContext } from './context/UserContext';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
-// Fetch health data from backend API (replace with your actual API endpoint)
+// Fetch health data from backend API
 const fetchHealthData = async () => {
   try {
-    console.log('Fetching health data...');
-    const response = await axios.get(`${API_BASE_URL}/patient-records/health-data/count`); // Correct API URL
-    console.log('Health data fetched successfully:', response.data);
-    return response.data || [];  // Ensure the response data is an array
+    const response = await axios.get(`${API_BASE_URL}/patient-records/health-data/count`);
+    return response.data || [];
   } catch (error) {
     console.error('Error fetching health data:', error);
-    return [];  // Return an empty array in case of error
+    return [];
   }
 };
 
-const calculateImprovementPercentage = (newValue, oldValue) => {
-  if (oldValue === 0 || oldValue === undefined || newValue === undefined) return 0;
-  return ((oldValue - newValue) / oldValue) * 100;
-};
-
-const calculateObeseImprovementPercentage = (newValue, oldValue) => {
-  if (oldValue === 0 || oldValue === undefined || newValue === undefined) return 0;
-  return ((newValue - oldValue) / oldValue) * 100;
+// Fetch users and admin counts from backend API
+const fetchUserAndAdminCounts = async () => {
+  try {
+    const response = await axios.get(`${API_BASE_URL}/admins/admin-user-count`); // Corrected API route
+    return response.data || { users: 0, admins: 0 };
+  } catch (error) {
+    console.error('Error fetching user and admin counts:', error);
+    return { users: 0, admins: 0 };
+  }
 };
 
 function Dashboard() {
   const [data, setData] = useState([]);
-  const [viewBy, setViewBy] = useState('weeks'); // Default view by weeks
+  const [viewBy, setViewBy] = useState('weeks');
   const [malnourishedCount, setMalnourishedCount] = useState(0);
   const [obeseCount, setObeseCount] = useState(0);
+  const [userCount, setUserCount] = useState(0);
+  const [adminCount, setAdminCount] = useState(0);
+
+  // Use UserContext to get the logged-in user's role
+  const { role } = useContext(UserContext);
 
   useEffect(() => {
     const getData = async () => {
       const healthData = await fetchHealthData();
-      console.log('Raw health data:', healthData); // Ensure the response is correct
-  
       if (healthData) {
-        // Directly set the malnourished and obese counts from the response
-        console.log('Setting malnourished and obese counts');
         setMalnourishedCount(healthData.malnourished || 0);
         setObeseCount(healthData.obese || 0);
-      } else {
-        console.error('No data returned from the API');
       }
     };
-  
+
+    const getUserAndAdminCounts = async () => {
+      if (role === 'Super Admin' || role === 'Admin') {
+        const { users, admins } = await fetchUserAndAdminCounts();
+        setUserCount(users);
+        setAdminCount(admins);
+      }
+    };
+
     getData();
-  }, []);
-  
+    getUserAndAdminCounts();
+  }, [role]);
 
   const handleChangeViewBy = (newViewBy) => {
-    console.log(`Changing view to: ${newViewBy}`);
     setViewBy(newViewBy);
   };
 
-  // Filter data for February to May if view by months is selected
+  // Filter data if view by 'months' is selected
   const filteredData = viewBy === 'months' ? data.filter(item => ['Feb', 'Mar', 'Apr', 'May'].includes(item.month)) : data;
-
-  console.log('Filtered data for the current view:', filteredData);
 
   return (
     <Box sx={{ padding: 2 }}>
@@ -70,32 +74,66 @@ function Dashboard() {
         Health Improvement Dashboard
       </Typography>
 
-      {/* Cards displaying the total count of malnourished and obese children */}
       <Grid container spacing={2} sx={{ marginBottom: 2 }}>
-        <Grid item xs={12} md={6}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Malnourished Children
-              </Typography>
-              <Typography variant="h3" color="primary">
-                {malnourishedCount}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} md={6}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Obese Children
-              </Typography>
-              <Typography variant="h3" color="primary">
-                {obeseCount}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
+        {/* Display Malnourished and Obese Counts for Nutritionist and Health Worker */}
+        {(role === 'Nutritionist' || role === 'Health Worker') && (
+          <>
+            <Grid item xs={12} md={6}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom>
+                    Malnourished Children
+                  </Typography>
+                  <Typography variant="h3" color="primary">
+                    {malnourishedCount}
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom>
+                    Obese Children
+                  </Typography>
+                  <Typography variant="h3" color="primary">
+                    {obeseCount}
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+          </>
+        )}
+
+        {/* Display Users and Admins count for Admin and Super Admin */}
+        {(role === 'Admin' || role === 'Super Admin') && (
+          <>
+            <Grid item xs={12} md={6}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom>
+                    Total Users
+                  </Typography>
+                  <Typography variant="h3" color="primary">
+                    {userCount}
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom>
+                    Total Admins
+                  </Typography>
+                  <Typography variant="h3" color="primary">
+                    {adminCount}
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+          </>
+        )}
       </Grid>
 
       {/* Button Group to toggle between weeks and months view */}
@@ -114,7 +152,7 @@ function Dashboard() {
         </Button>
       </ButtonGroup>
 
-      {/* Line charts for improvements in malnourished and obese children */}
+      {/* Line charts for improvements */}
       <Grid container spacing={2}>
         <Grid item xs={12} md={6}>
           <Paper sx={{ padding: 2, marginBottom: 2 }}>
