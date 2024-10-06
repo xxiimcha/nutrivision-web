@@ -19,7 +19,7 @@ app.use(bodyParser.json());
 app.use(cors());
 
 // MongoDB connection using environment variables
-const mongoUri = process.env.MONGO_URI || 'your-fallback-mongo-uri';
+const mongoUri = process.env.MONGO_URI || 'fallback-mongo-uri';
 mongoose.connect(mongoUri, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
@@ -60,7 +60,9 @@ const mealPlanRoutes = require('./routes/mealPlans');
 const userRoutes = require('./routes/users');
 const messageRoutes = require('./routes/messages');
 const notificationsRouter = require('./routes/notifications');
+const logsRoutes = require('./routes/logs'); 
 
+app.use('/api/logs', logsRoutes);
 app.use('/api/admins', adminRoutes);
 app.use('/api/login', loginRoutes);
 app.use('/api/events', eventRoutes);

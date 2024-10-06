@@ -7,6 +7,7 @@ const Admin = require('../models/Admin');
 const User = require('../models/User'); // Assuming you have a User model
 const generatePassword = require('../utils/generatePassword');
 const sendEmail = require('../utils/sendEmail');
+const Log = require('../models/Log'); // Import Log model
 
 const router = express.Router();
 
@@ -51,20 +52,14 @@ router.get('/admin-user-count', async (req, res) => {
 router.post('/', async (req, res) => {
   const { firstName, lastName, email, role } = req.body;
 
-  // Generate a password for the new admin
   const password = generatePassword();
-
-  // Create a new admin with the generated password (no hashing)
   const newAdmin = new Admin({ firstName, lastName, email, role, password });
 
   try {
     await newAdmin.save();
 
-    // Prepare the email content with the registered email
     const subject = 'Your Account Password';
     const text = `Dear ${firstName},\n\nYour admin account has been created successfully.\n\nYour registered email is: ${email}\nHere is your password: ${password}\n\nPlease change your password after logging in.\n\nBest regards,\nYour Company`;
-
-    // Send the email with the generated password and registered email
     const emailSent = await sendEmail(email, subject, text);
 
     if (emailSent) {
@@ -73,6 +68,14 @@ router.post('/', async (req, res) => {
       console.log(`Failed to send email to ${email}`);
     }
 
+    // Log the creation of the new admin
+    const log = new Log({
+      actionType: 'ADMIN_CREATED',
+      user: newAdmin._id,
+      description: `Admin account created for ${email}`,
+    });
+    await log.save();
+
     res.status(201).json(newAdmin);
   } catch (error) {
     console.error('Error creating admin:', error);
@@ -80,7 +83,6 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Upload profile picture
 router.post('/:id/upload-profile-picture', async (req, res) => {
   const { profilePicture } = req.body;
 
@@ -97,6 +99,13 @@ router.post('/:id/upload-profile-picture', async (req, res) => {
 
     admin.profilePicture = profilePicture;
     await admin.save();
+    
+    const log = new Log({
+      actionType: 'PROFILE_PICTURE_UPLOADED',
+      user: admin._id,
+      description: `Profile picture uploaded for admin: ${admin.email}`,
+    });
+    await log.save();
 
     res.json({ profilePicture: admin.profilePicture });
   } catch (error) {
@@ -109,6 +118,7 @@ router.post('/:id/upload-profile-picture', async (req, res) => {
 router.get('/', async (req, res) => {
   try {
     const admins = await Admin.find();
+
     res.status(200).json(admins);
   } catch (error) {
     console.error('Error fetching admins:', error);
@@ -118,12 +128,12 @@ router.get('/', async (req, res) => {
 
 // Retrieve an admin by ID
 router.get('/:id', async (req, res) => {
-  const { id } = req.params;
   try {
-    const admin = await Admin.findById(id);
+    const admin = await Admin.findById(req.params.id);
     if (!admin) {
       return res.status(404).json({ message: 'Admin not found' });
     }
+
     res.status(200).json(admin);
   } catch (error) {
     console.error('Error fetching admin:', error);
@@ -133,11 +143,10 @@ router.get('/:id', async (req, res) => {
 
 // Update an admin by ID
 router.put('/:id', async (req, res) => {
-  const { id } = req.params;
   const { firstName, lastName, email } = req.body;
 
   try {
-    const admin = await Admin.findById(id);
+    const admin = await Admin.findById(req.params.id);
     if (!admin) {
       return res.status(404).json({ message: 'Admin not found' });
     }
@@ -155,7 +164,6 @@ router.put('/:id', async (req, res) => {
 
       const subject = 'Email Change Verification';
       const text = `Your OTP code is ${otp}. It is valid for 15 minutes. Please use this code to verify your email change.`;
-
       const emailSent = await sendEmail(email, subject, text);
 
       if (emailSent) {
@@ -165,10 +173,28 @@ router.put('/:id', async (req, res) => {
       }
 
       await admin.save();
+
+      // Log the OTP generation for email change
+      const log = new Log({
+        actionType: 'EMAIL_CHANGE_OTP_SENT',
+        user: admin._id,
+        description: `OTP sent for email change to ${email}`,
+      });
+      await log.save();
+
       return res.status(200).json({ message: 'OTP sent to new email. Please verify to confirm the email change.' });
     }
 
     await admin.save();
+
+    // Log the admin update
+    const log = new Log({
+      actionType: 'ADMIN_UPDATED',
+      user: admin._id,
+      description: `Admin details updated for ${admin.email}`,
+    });
+    await log.save();
+
     res.status(200).json(admin);
   } catch (error) {
     console.error('Error updating admin:', error);
@@ -178,25 +204,30 @@ router.put('/:id', async (req, res) => {
 
 // Verify OTP for email change
 router.put('/:id/verify-otp', async (req, res) => {
-  const { id } = req.params;
   const { otp, newEmail } = req.body;
 
   try {
-    const admin = await Admin.findById(id);
+    const admin = await Admin.findById(req.params.id);
     if (!admin) {
       return res.status(404).json({ message: 'Admin not found' });
     }
 
-    // Verify OTP
     if (admin.otp !== otp || admin.otpExpires < Date.now()) {
       return res.status(400).json({ message: 'Invalid or expired OTP' });
     }
 
-    // Update email address
     admin.email = newEmail;
     admin.otp = undefined;
     admin.otpExpires = undefined;
     await admin.save();
+
+    // Log successful email update
+    const log = new Log({
+      actionType: 'EMAIL_UPDATED',
+      user: admin._id,
+      description: `Email updated to ${newEmail} for admin: ${admin.email}`,
+    });
+    await log.save();
 
     res.status(200).json({ message: 'Email address updated successfully' });
   } catch (error) {
@@ -207,23 +238,28 @@ router.put('/:id/verify-otp', async (req, res) => {
 
 // Update an admin's password by ID
 router.put('/:id/change-password', async (req, res) => {
-  const { id } = req.params;
   const { currentPassword, newPassword } = req.body;
 
   try {
-    const admin = await Admin.findById(id);
+    const admin = await Admin.findById(req.params.id);
     if (!admin) {
       return res.status(404).json({ message: 'Admin not found' });
     }
 
-    // Check if the current password is correct (no hashing)
     if (admin.password !== currentPassword) {
       return res.status(400).json({ message: 'Current password is incorrect' });
     }
 
-    // Update the password with the new one (no hashing)
     admin.password = newPassword;
     await admin.save();
+
+    // Log the password change
+    const log = new Log({
+      actionType: 'PASSWORD_CHANGED',
+      user: admin._id,
+      description: `Password changed for admin: ${admin.email}`,
+    });
+    await log.save();
 
     res.status(200).json({ message: 'Password updated successfully' });
   } catch (error) {
@@ -234,15 +270,12 @@ router.put('/:id/change-password', async (req, res) => {
 
 // Delete an admin by ID
 router.delete('/:id', async (req, res) => {
-  const { id } = req.params;
-
   try {
-    const deletedAdmin = await Admin.findByIdAndDelete(id);
+    const deletedAdmin = await Admin.findByIdAndDelete(req.params.id);
     if (!deletedAdmin) {
       return res.status(404).json({ message: 'Admin not found' });
     }
 
-    // Delete the associated profile picture if it exists
     if (deletedAdmin.profilePicture) {
       fs.unlink(path.join(__dirname, '..', deletedAdmin.profilePicture), (err) => {
         if (err) {
@@ -250,6 +283,14 @@ router.delete('/:id', async (req, res) => {
         }
       });
     }
+
+    // Log the admin deletion
+    const log = new Log({
+      actionType: 'ADMIN_DELETED',
+      user: deletedAdmin._id,
+      description: `Admin account deleted for ${deletedAdmin.email}`,
+    });
+    await log.save();
 
     res.status(204).send();
   } catch (error) {

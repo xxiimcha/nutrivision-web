@@ -49,9 +49,15 @@ const FoodManagement = () => {
 
   // Filter kids based on their nutrition status (All, Malnourished, Obese) and search term
   const filteredKids = kids.filter((kid) => {
+    // Exclude kids with 'Normal' nutrition status
+    if (kid.nutritionStatus === 'Normal') {
+      return false;
+    }
+
     if (filterType === 'All') {
       return kid.name.toLowerCase().includes(searchTerm.toLowerCase());
     }
+
     return (
       kid.nutritionStatus === filterType &&
       kid.name.toLowerCase().includes(searchTerm.toLowerCase())

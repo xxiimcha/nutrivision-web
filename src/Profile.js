@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Typography, Avatar, IconButton, Button, TextField, InputAdornment, Modal } from '@mui/material';
+import { Box, Typography, Avatar, IconButton, Button, TextField, InputAdornment, Modal, 
+  LinearProgress } from '@mui/material';
 import CameraAltIcon from '@mui/icons-material/CameraAlt';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
@@ -31,6 +32,9 @@ const Profile = () => {
 
   const [selectedImage, setSelectedImage] = useState(null); // State for handling image selection
   const [otpModalOpen, setOtpModalOpen] = useState(false); // State for OTP modal
+
+  const [uploadProgress, setUploadProgress] = useState(0); // Track the upload progress
+  const [progressModalOpen, setProgressModalOpen] = useState(false); // Modal for progress bar
 
   // New state for form errors
   const [errors, setErrors] = useState({});
@@ -222,23 +226,25 @@ const Profile = () => {
       toast.error('Please select an image to upload');
       return;
     }
-
+  
     const storageRef = ref(storage, `profile-pictures/${userId}_${selectedImage.name}`);
     const uploadTask = uploadBytesResumable(storageRef, selectedImage);
-
+  
+    setProgressModalOpen(true); // Open progress modal
+  
     uploadTask.on(
       "state_changed",
       (snapshot) => {
-        // You can show upload progress if needed
         const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+        setUploadProgress(progress); // Set upload progress
         console.log('Upload is ' + progress + '% done');
       },
       (error) => {
         console.error('Error uploading profile picture:', error);
         toast.error('Failed to upload profile picture');
+        setProgressModalOpen(false); // Close progress modal on error
       },
       () => {
-        // Handle successful uploads on complete
         getDownloadURL(uploadTask.snapshot.ref).then(async (downloadURL) => {
           try {
             const response = await fetch(`${API_BASE_URL}/admins/${userId}/upload-profile-picture`, {
@@ -248,22 +254,25 @@ const Profile = () => {
               },
               body: JSON.stringify({ profilePicture: downloadURL }), // Send the download URL to the backend
             });
-
+  
             if (!response.ok) {
               throw new Error('Failed to update profile picture URL');
             }
-
+  
             const data = await response.json();
             setUserData({ ...userData, profilePicture: data.profilePicture }); // Update the profile picture
             toast.success('Profile picture updated successfully');
           } catch (error) {
             console.error('Error saving profile picture URL:', error);
             toast.error('Failed to save profile picture URL');
+          } finally {
+            setProgressModalOpen(false); // Close progress modal once upload is done
           }
         });
       }
     );
   };
+  
 
   const toggleShowCurrentPassword = () => setShowCurrentPassword(!showCurrentPassword);
   const toggleShowNewPassword = () => setShowNewPassword(!showNewPassword);
@@ -405,6 +414,23 @@ const Profile = () => {
           </Modal>
         )}
       </Box>
+      
+      <Modal
+        open={progressModalOpen}
+        onClose={() => setProgressModalOpen(false)}
+        aria-labelledby="progress-modal-title"
+        aria-describedby="progress-modal-description"
+      >
+        <Box sx={modalStyle}>
+          <Typography id="progress-modal-title" variant="h6" gutterBottom>
+            Uploading Profile Picture
+          </Typography>
+          <LinearProgress variant="determinate" value={uploadProgress} />
+          <Typography id="progress-modal-description" sx={{ mt: 2 }}>
+            {uploadProgress.toFixed(0)}% completed
+          </Typography>
+        </Box>
+      </Modal>
 
       {/* Security Section */}
       <Box sx={{ mt: 3, width: '100%', maxWidth: '600px' }}>

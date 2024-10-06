@@ -16,12 +16,9 @@ import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
-
-import logo from '../images/logo.png';
+import logo from '../images/logo.png'; // Import your logo
 
 const defaultTheme = createTheme();
-
-// Get the API base URL from environment variables
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
 export default function SignInSide() {
@@ -31,6 +28,7 @@ export default function SignInSide() {
   const [otp, setOtp] = useState('');
   const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
   const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false);
+  const [countdown, setCountdown] = useState(30); // Added countdown
   const navigate = useNavigate();
 
   const handleSubmit = async (event) => {
@@ -45,12 +43,9 @@ export default function SignInSide() {
         setLoginEmail(email);
         if (response.data.otpRequired) {
           setStep('otp');
+          startCountdown();
         } else {
           const { role, _id, name, email } = response.data;
-          console.log('User Role:', role);
-          console.log('User Name:', name);
-          console.log('User Email:', email);
-          console.log('User ID:', _id);
           setRole(role);
           setUserId(_id);
           setName(name);
@@ -68,16 +63,23 @@ export default function SignInSide() {
     }
   };
 
+  const startCountdown = () => {
+    let timer = 30;
+    const countdownInterval = setInterval(() => {
+      timer--;
+      setCountdown(timer);
+      if (timer <= 0) {
+        clearInterval(countdownInterval);
+      }
+    }, 1000);
+  };
+
   const handleOtpSubmit = async (event) => {
     event.preventDefault();
     try {
       const response = await axios.post(`${API_BASE_URL}/login/verify-otp`, { email: loginEmail, otp });
       if (response.status === 200) {
         const { role, _id, name, email } = response.data;
-        console.log('User Role:', role);
-        console.log('User Name:', name);
-        console.log('User Email:', email);
-        console.log('User ID:', _id);
         setRole(role);
         setUserId(_id);
         setName(name);
@@ -106,7 +108,7 @@ export default function SignInSide() {
       alert('Failed to send password reset link');
     }
   };
-  
+
   return (
     <ThemeProvider theme={defaultTheme}>
       <Grid container component="main" sx={{ height: '100vh' }}>
@@ -125,25 +127,24 @@ export default function SignInSide() {
             backgroundPosition: 'center',
           }}
         />
-        <Grid item xs={12} sm={8} md={5} component={Paper} elevation={6} square sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <Grid item xs={12} sm={8} md={5} component={Paper} elevation={6} square>
           <Box
             sx={{
-              p: 4,
-              width: '100%',
-              maxWidth: '400px',
-              boxShadow: '0px 0px 20px rgba(0, 0, 0, 0.1)',
-              borderRadius: '10px',
+              my: 4,
+              mx: 4,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
           >
-            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 4 }}>
-              <img src={logo} alt="Logo" style={{ width: '100px', height: '100px' }} />
-              <Typography component="h3" variant="h4" sx={{ mt: 2 }}>
-                Welcome!
-              </Typography>
-            </Box>
+            <img src={logo} alt="Logo" style={{ width: '100px', height: '100px' }} />
+            <Typography component="h1" variant="h5" sx={{ mt: 2, mb: 2 }}>
+              {step === 'login' ? 'Welcome Back!' : 'OTP Verification'}
+            </Typography>
 
             {step === 'login' ? (
-              <Box component="form" noValidate onSubmit={handleSubmit} sx={{ mt: 1 }}>
+              <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1 }}>
                 <TextField
                   margin="normal"
                   required
@@ -153,14 +154,7 @@ export default function SignInSide() {
                   name="email"
                   autoComplete="email"
                   autoFocus
-                  sx={{
-                    '& .MuiInputBase-input': {
-                      fontSize: '16px',
-                    },
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: '50px',
-                    },
-                  }}
+                  sx={{ mb: 2 }}
                 />
                 <TextField
                   margin="normal"
@@ -171,63 +165,46 @@ export default function SignInSide() {
                   type="password"
                   id="password"
                   autoComplete="current-password"
-                  sx={{
-                    '& .MuiInputBase-input': {
-                      fontSize: '16px',
-                    },
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: '50px',
-                    },
-                  }}
+                  sx={{ mb: 3 }}
                 />
-                <Button
-                  type="submit"
-                  fullWidth
-                  variant="contained"
-                  sx={{ mt: 3, mb: 2, borderRadius: '50px', boxShadow: 'none' }}
-                >
+                <Button type="submit" fullWidth variant="contained" sx={{ mb: 2 }}>
                   Login
                 </Button>
                 <Link
                   href="#"
                   variant="body2"
                   onClick={() => setForgotPasswordOpen(true)}
-                  sx={{ display: 'block', textAlign: 'center', mt: 2 }}
+                  sx={{ display: 'block', textAlign: 'center' }}
                 >
                   Forgot password?
                 </Link>
               </Box>
             ) : (
-              <Box component="form" noValidate onSubmit={handleOtpSubmit} sx={{ mt: 1 }}>
-                <Typography variant="h6" align="center">
-                  Enter the OTP sent to your email
+              <Box component="form" onSubmit={handleOtpSubmit} sx={{ mt: 2 }}>
+                <Typography sx={{ textAlign: 'center', mb: 2 }}>
+                  A verification has been sent to your email. Please check your email to verify.
                 </Typography>
                 <TextField
                   margin="normal"
                   required
                   fullWidth
                   id="otp"
-                  label="OTP"
+                  label="Enter OTP"
                   name="otp"
-                  autoComplete="otp"
-                  autoFocus
                   value={otp}
                   onChange={(e) => setOtp(e.target.value)}
                   sx={{
-                    '& .MuiInputBase-input': {
-                      fontSize: '16px',
-                    },
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: '50px',
-                    },
+                    mb: 3,
+                    '& input': { textAlign: 'center', letterSpacing: '0.5rem' }, // For individual box look
                   }}
                 />
-                <Button
-                  type="submit"
-                  fullWidth
-                  variant="contained"
-                  sx={{ mt: 3, mb: 2, borderRadius: '50px', boxShadow: 'none' }}
-                >
+                <Box sx={{ textAlign: 'center', mb: 2 }}>
+                  <Typography variant="body2">Time remaining: {countdown}s</Typography>
+                  <Link href="#" variant="body2" sx={{ mt: 1 }}>
+                    Resend OTP
+                  </Link>
+                </Box>
+                <Button type="submit" fullWidth variant="contained" sx={{ mb: 2 }}>
                   Verify OTP
                 </Button>
               </Box>

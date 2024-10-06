@@ -7,7 +7,7 @@ const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
 const fetchActivityLogs = async () => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/activity-logs`);
+    const response = await axios.get(`${API_BASE_URL}/logs`);
     return response.data || [];
   } catch (error) {
     console.error('Error fetching activity logs:', error);
@@ -32,17 +32,6 @@ function ActivityLog() {
     getLogs();
   }, []);
 
-  // If the logged-in user is not Admin or Super Admin, return an "Access Denied" message
-  if (role !== 'Admin' && role !== 'Super Admin') {
-    return (
-      <Box sx={{ padding: 2 }}>
-        <Typography variant="h6" color="error">
-          Access Denied. You do not have permission to view the Activity Log.
-        </Typography>
-      </Box>
-    );
-  }
-
   return (
     <Box sx={{ padding: 2 }}>
       <Typography variant="h4" gutterBottom>
@@ -66,10 +55,10 @@ function ActivityLog() {
               {activityLogs.length > 0 ? (
                 activityLogs.map((log, index) => (
                   <TableRow key={index}>
-                    <TableCell>{new Date(log.date).toLocaleString()}</TableCell>
-                    <TableCell>{log.user}</TableCell>
-                    <TableCell>{log.action}</TableCell>
-                    <TableCell>{log.details}</TableCell>
+                    <TableCell>{new Date(log.timestamp).toLocaleString()}</TableCell>
+                    <TableCell>{log.user ? `${log.user.firstName} ${log.user.lastName}` : 'System'}</TableCell> {/* Adjust based on user details */}
+                    <TableCell>{log.actionType}</TableCell>
+                    <TableCell>{log.description}</TableCell>
                   </TableRow>
                 ))
               ) : (
