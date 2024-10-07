@@ -53,6 +53,47 @@ const RecordsManagement = () => {
     return datetime.split('T')[0];
   };
 
+  // Alternative print function
+  const handlePrint = () => {
+    const printWindow = window.open('', '_blank');
+    const tableHTML = document.getElementById('records-table').outerHTML; // Get the table's HTML
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Patient Records</title>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-bottom: 20px;
+            }
+            th, td {
+              border: 1px solid #000;
+              padding: 8px;
+              text-align: left;
+            }
+            th {
+              background-color: #f2f2f2;
+            }
+          </style>
+        </head>
+        <body>
+          <h2>Patient Records</h2>
+          ${tableHTML}  <!-- Insert the table into the new window -->
+        </body>
+      </html>
+    `);
+    
+    printWindow.document.close(); // Close the document to finish writing
+    printWindow.focus();
+    printWindow.print();  // Trigger the print dialog
+    printWindow.close();  // Close the window after printing
+  };
+
   return (
     <Container>
       <Typography variant="h4" gutterBottom>
@@ -67,12 +108,12 @@ const RecordsManagement = () => {
           fullWidth
           sx={{ marginRight: 2 }}
         />
-        <Button variant="contained" color="success" startIcon={<PrintIcon />}>
+        <Button variant="contained" color="success" startIcon={<PrintIcon />} onClick={handlePrint}>
           PRINT
         </Button>
       </Box>
       <TableContainer component={Paper}>
-        <Table>
+        <Table id="records-table"> {/* Add id for printing */}
           <TableHead>
             <TableRow>
               <TableCell sx={{ fontWeight: 'bold' }}>Number</TableCell> 
@@ -84,7 +125,6 @@ const RecordsManagement = () => {
               <TableCell sx={{ fontWeight: 'bold' }}>Patient Height (CM)</TableCell>
               <TableCell sx={{ fontWeight: 'bold' }}>Patient Weight (KG)</TableCell>
               <TableCell sx={{ fontWeight: 'bold' }}>Date of Weighing</TableCell>
-              <TableCell sx={{ fontWeight: 'bold' }}>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -101,15 +141,6 @@ const RecordsManagement = () => {
                 <TableCell>{record.height}</TableCell>
                 <TableCell>{record.weight}</TableCell>
                 <TableCell>{extractDate(record.dateOfWeighing)}</TableCell>
-                <TableCell>
-                  <Button 
-                    variant="contained" 
-                    color="primary" 
-                    onClick={() => handleViewDetails(record._id)}
-                  >
-                    View
-                  </Button>
-                </TableCell>
               </TableRow>
             ))}
           </TableBody>
