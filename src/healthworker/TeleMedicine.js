@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useContext } from 'react';
+import React, { useEffect, useState, useContext, useRef } from 'react';
 import io from 'socket.io-client';
 import {
   Box,
@@ -10,8 +10,6 @@ import {
   ListItem,
   ListItemText,
   Avatar,
-  InputAdornment,
-  ListItemAvatar,
   Grid,
   IconButton,
   Paper,
@@ -20,15 +18,14 @@ import {
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import VideocamIcon from '@mui/icons-material/Videocam';
-import PhoneIcon from '@mui/icons-material/Phone';
 import axios from 'axios';
-import { UserContext } from '../context/UserContext'; // Assume you have a context for User
-import { initiateCall } from '../services/DailyAPI'; // Import Daily.co API-related function
+import { UserContext } from '../context/UserContext';
+import { initiateCall } from '../services/DailyAPI';
 
-const socket = io(process.env.REACT_APP_API_BASE_URL); // Using environment variable for socket connection
+const socket = io(process.env.REACT_APP_API_BASE_URL);
 
 const Telemed = () => {
-  const { userId } = useContext(UserContext); // Assume you have a user context that provides the logged-in userId
+  const { userId } = useContext(UserContext);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [users, setUsers] = useState([]);
@@ -36,12 +33,11 @@ const Telemed = () => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [incomingCall, setIncomingCall] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [userStatus, setUserStatus] = useState({}); 
+  const messagesEndRef = useRef(null); // Reference for scrolling to bottom
 
   useEffect(() => {
-    // Register user in the socket
     socket.emit('register-user', userId);
-
-    // Handle incoming calls
     socket.on('incoming-call', (data) => {
       setIncomingCall(data.callerId);
     });
@@ -51,33 +47,25 @@ const Telemed = () => {
     };
   }, [userId]);
 
-  // Fetch users for chat
   useEffect(() => {
     const fetchUsers = async () => {
       try {
         const response = await axios.get(`${process.env.REACT_APP_API_BASE_URL}/users`);
         setUsers(response.data);
-        setFilteredUsers(response.data); // Initially show all users
+        setFilteredUsers(response.data);
+  
+        const statusMap = {};
+        response.data.forEach(user => {
+          statusMap[user._id] = user.status;
+        });
+        setUserStatus(statusMap);
       } catch (error) {
         console.error('Error fetching users', error);
       }
     };
     fetchUsers();
-  }, []);
+  }, []);  
 
-  // Filter users based on search query
-  useEffect(() => {
-    if (searchQuery.trim() !== '') {
-      const filtered = users.filter((user) =>
-        `${user.firstName} ${user.lastName}`.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-      setFilteredUsers(filtered);
-    } else {
-      setFilteredUsers(users);
-    }
-  }, [searchQuery, users]);
-
-  // Fetch messages when a user is selected
   const handleUserClick = async (user) => {
     setSelectedUser(user);
     try {
@@ -90,7 +78,6 @@ const Telemed = () => {
     }
   };
 
-  // Send message
   const handleSendMessage = async () => {
     if (newMessage.trim() && selectedUser) {
       try {
@@ -107,62 +94,45 @@ const Telemed = () => {
     }
   };
 
-  // Accept incoming call
-  const acceptCall = () => {
-    console.log(`Accepting call from ${incomingCall}`);
-    setIncomingCall(null); // Reset incoming call after accepting
+  const scrollToBottom = () => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
   };
 
-  // Decline incoming call
+  // Call scrollToBottom every time messages are updated
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const acceptCall = () => {
+    console.log(`Accepting call from ${incomingCall}`);
+    setIncomingCall(null);
+  };
+
   const declineCall = () => {
     console.log(`Declining call from ${incomingCall}`);
-    setIncomingCall(null); // Reset incoming call after declining
+    setIncomingCall(null);
   };
 
   return (
     <Container>
-      <Grid container spacing={2}>
-        {/* Users list */}
+      <Grid container spacing={3}>
         <Grid item xs={12} md={4}>
-          <Card>
+          <Card elevation={3} sx={{ borderRadius: 3 }}>
             <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Chats
-              </Typography>
+              <Typography variant="h6" gutterBottom>Chats</Typography>
               <TextField
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search user..."
                 InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon />
-                    </InputAdornment>
-                  ),
+                  startAdornment: <SearchIcon position="start" />,
                 }}
                 fullWidth
-                margin="normal"
-                sx={{ marginBottom: 2 }}
+                sx={{ mb: 2 }}
               />
-              <List
-                sx={{
-                  maxHeight: '60vh',
-                  overflowY: 'auto',
-                  '&::-webkit-scrollbar': {
-                    width: '8px', // Width of the scrollbar
-                  },
-                  '&::-webkit-scrollbar-track': {
-                    background: '#f0f0f0', // Background of the scrollbar track
-                  },
-                  '&::-webkit-scrollbar-thumb': {
-                    backgroundColor: '#888', // Color of the scrollbar thumb
-                    borderRadius: '10px', // Rounded corners
-                  },
-                  '&::-webkit-scrollbar-thumb:hover': {
-                    backgroundColor: '#555', // Darker color when hovering
-                  },
-                }}
-              >
+              <List sx={{ maxHeight: '60vh', overflowY: 'auto' }}>
                 {filteredUsers.map((user) => (
                   <ListItem
                     button
@@ -170,14 +140,27 @@ const Telemed = () => {
                     onClick={() => handleUserClick(user)}
                     selected={selectedUser?._id === user._id}
                     sx={{
+                      borderRadius: 2,
+                      mb: 1,
                       bgcolor: selectedUser?._id === user._id ? 'primary.light' : 'background.paper',
-                      color: selectedUser?._id === user._id ? 'primary.contrastText' : 'inherit',
+                      '&:hover': {
+                        bgcolor: 'primary.light',
+                      },
                     }}
                   >
-                    <ListItemAvatar>
-                      <Avatar>{user.firstName[0]}</Avatar>
-                    </ListItemAvatar>
-                    <ListItemText primary={`${user.firstName} ${user.lastName}`} />
+                    <Avatar>{user.firstName[0]}</Avatar>
+                    <ListItemText
+                      primary={`${user.firstName} ${user.lastName}`}
+                      secondary={userStatus[user._id] === 'online' ? 'Online' : 'Offline'}
+                      sx={{ ml: 2 }}
+                    />
+                    <Box sx={{ ml: 1 }}>
+                      {userStatus[user._id] === 'online' ? (
+                        <Typography color="green">● Online</Typography>
+                      ) : (
+                        <Typography color="red">● Offline</Typography>
+                      )}
+                    </Box>
                   </ListItem>
                 ))}
               </List>
@@ -185,7 +168,6 @@ const Telemed = () => {
           </Card>
         </Grid>
 
-        {/* Chat section */}
         <Grid item xs={12} md={8}>
           {selectedUser ? (
             <>
@@ -203,114 +185,135 @@ const Telemed = () => {
                   Conversation with {selectedUser.firstName} {selectedUser.lastName}
                 </Typography>
                 <Box>
-                  <IconButton onClick={() => initiateCall(selectedUser._id, 'video', userId)}>
+                  <IconButton
+                    onClick={() => initiateCall(selectedUser._id, 'video', userId)}
+                    disabled={userStatus[selectedUser._id] !== 'online'}
+                  >
                     <VideocamIcon />
-                  </IconButton>
-                  <IconButton onClick={() => initiateCall(selectedUser._id, 'audio', userId)}>
-                    <PhoneIcon />
                   </IconButton>
                 </Box>
               </Box>
-
-              {/* Messages */}
-              <Box
+              
+              <List
                 sx={{
-                  height: '400px', // Fixed height for the conversation area
+                  height: '650px', // Fixed height
                   overflowY: 'auto',
                   padding: 2,
-                  backgroundColor: '#f5f5f5',
-                  borderRadius: '10px',
+                  bgcolor: '#f5f5f5',
+                  borderRadius: 3,
                   mb: 2,
-                  '&::-webkit-scrollbar': {
-                    width: '8px', // Custom scrollbar width
-                  },
-                  '&::-webkit-scrollbar-track': {
-                    background: '#f0f0f0', // Background of scrollbar track
-                  },
-                  '&::-webkit-scrollbar-thumb': {
-                    backgroundColor: '#888', // Color of the scrollbar thumb
-                    borderRadius: '10px', // Rounded corners for thumb
-                  },
-                  '&::-webkit-scrollbar-thumb:hover': {
-                    backgroundColor: '#555', // Darker color when hovering
-                  },
+                  boxShadow: 2,
                 }}
               >
-                <List>
-                  {messages.map((message, index) => (
-                    <ListItem key={index} sx={{ justifyContent: message.sender === userId ? 'flex-end' : 'flex-start' }}>
-                      <Paper
+                {messages.map((message, index) => {
+                const messageDate = new Date(message.timestamp);
+                let hours = messageDate.getUTCHours(); // Get the UTC hours
+                let minutes = messageDate.getUTCMinutes(); // Get the UTC minutes
+                hours = (hours + 8) % 24;
+                const ampm = hours >= 12 ? 'PM' : 'AM';
+                hours = hours % 12;
+                hours = hours ? hours : 12; // Convert hour '0' to '12'
+
+                // Format the time string
+                const formattedTime = `${hours}:${minutes < 10 ? '0' : ''}${minutes} ${ampm}`;
+
+                // Format the date part
+                const formattedDate = messageDate.toLocaleDateString('en-US', {
+                  weekday: 'long',
+                  year: 'numeric',
+                  month: 'short',
+                  day: 'numeric',
+                });
+
+                // Get the previous message's date (if exists)
+                const previousMessage = messages[index - 1];
+                const previousMessageDate = previousMessage
+                  ? new Date(previousMessage.timestamp)
+                  : null;
+                const formattedPreviousDate = previousMessageDate
+                  ? previousMessageDate.toLocaleDateString('en-US', {
+                      weekday: 'long',
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric',
+                    })
+                  : null;
+
+                // Only show the date divider if the date is different from the previous message's date
+                const showDateDivider = !previousMessage || formattedDate !== formattedPreviousDate;
+
+                return (
+                  <React.Fragment key={index}>
+                    {/* Date Divider */}
+                    {showDateDivider && (
+                      <Typography
+                        variant="body2"
                         sx={{
-                          padding: 1,
-                          bgcolor: message.sender === userId ? 'primary.main' : 'grey.300',
-                          color: message.sender === userId ? 'primary.contrastText' : 'text.primary',
-                          borderRadius: '10px',
-                          maxWidth: '70%',
+                          textAlign: 'center',
+                          margin: '10px 0',
+                          fontWeight: 'bold',
+                          color: 'grey',
                         }}
                       >
-                        <Typography>{message.text}</Typography>
+                        {formattedDate}
+                      </Typography>
+                    )}
+
+                    {/* Message */}
+                    <ListItem sx={{ justifyContent: message.sender === userId ? 'flex-end' : 'flex-start' }}>
+                      <Paper
+                        elevation={2}
+                        sx={{
+                          padding: 1.5,
+                          bgcolor: message.sender === userId ? 'primary.main' : 'grey.300',
+                          color: message.sender === userId ? 'primary.contrastText' : 'text.primary',
+                          borderRadius: 2,
+                          maxWidth: '60%',
+                        }}
+                      >
+                        <Typography variant="body2">{message.text}</Typography>
+                        <Typography variant="caption" sx={{ textAlign: 'right', display: 'block', mt: 1 }}>
+                          {formattedTime}
+                        </Typography>
                       </Paper>
                     </ListItem>
-                  ))}
-                </List>
-              </Box>
+                  </React.Fragment>
+                );
+              })}
 
-              {/* Send Message */}
-              <Box display="flex">
+                <div ref={messagesEndRef} />
+              </List>
+
+              <Box display="flex" sx={{ gap: 2 }}>
                 <TextField
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
-                  placeholder="Type a message..."
-                  fullWidth
                   onKeyPress={(e) => {
                     if (e.key === 'Enter') {
-                      handleSendMessage(); // Trigger message sending on Enter key
+                      e.preventDefault(); // Prevent the default action of the Enter key
+                      handleSendMessage(); // Trigger the send message function
                     }
                   }}
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: '20px',
-                    },
-                  }}
+                  placeholder="Type a message..."
+                  fullWidth
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3 } }}
                 />
-                <Button onClick={handleSendMessage} variant="contained" sx={{ ml: 2, borderRadius: '20px' }}>
+                <Button
+                  onClick={handleSendMessage}
+                  variant="contained"
+                  sx={{ borderRadius: 3 }}
+                >
                   Send
                 </Button>
               </Box>
             </>
           ) : (
-            <Card sx={{ padding: 3, textAlign: 'center', borderRadius: 2 }}>
+            <Card elevation={3} sx={{ padding: 3, textAlign: 'center', borderRadius: 2 }}>
               <Typography variant="h6">Select a user to chat with.</Typography>
             </Card>
           )}
         </Grid>
       </Grid>
-
-      {/* Incoming Call Notification */}
-      {incomingCall && (
-        <Box
-          sx={{
-            position: 'fixed',
-            bottom: 20,
-            right: 20,
-            bgcolor: 'background.paper',
-            boxShadow: 3,
-            p: 3,
-            borderRadius: 2,
-            zIndex: 1000,
-          }}
-        >
-          <Typography variant="subtitle1">Incoming call from user {incomingCall}</Typography>
-          <Box mt={2}>
-            <Button onClick={acceptCall} variant="contained" color="primary" sx={{ mr: 2 }}>
-              Accept
-            </Button>
-            <Button onClick={declineCall} variant="outlined" color="secondary">
-              Decline
-            </Button>
-          </Box>
-        </Box>
-      )}
     </Container>
   );
 };

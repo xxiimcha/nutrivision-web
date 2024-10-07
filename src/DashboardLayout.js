@@ -209,13 +209,16 @@ function DashboardLayout(props) {
           </List>
         </Collapse>
         
+        
+        {(role === 'Admin' || role === 'Super Admin') && (
         <CustomListItem button component={Link} to="/dashboard/activity-log">
           <ListItemIcon>
             <AssignmentTurnedInIcon />
           </ListItemIcon>
           <ListItemText primary="Activity Logs" />
         </CustomListItem>
-
+        )}
+        
         {(role === 'Nutritionist' || role === 'Health Worker') && (
           <CustomListItem button onClick={toggleStatusDropdown}>
             <ListItemIcon>

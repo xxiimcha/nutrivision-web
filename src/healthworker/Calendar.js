@@ -73,7 +73,7 @@ function Calendar() {
     const promises = updatedEvents.map(async (event) => {
       if (event.status === 'completed' && event.status !== 'cancelled') {
         try {
-          await axios.put(`${API_BASE_URL}/events/${event._id}`, event);
+          await axios.put(`/events/${event._id}`, event);
         } catch (error) {
           console.error('Error updating event status:', error);
         }
@@ -140,15 +140,16 @@ function Calendar() {
   };
 
   const saveEventToBackend = async (event) => {
-    try {
-      if (editingEvent) {
-        await axios.put(`${API_BASE_URL}/events/${editingEvent._id}`, event);
-      } else {
-        await axios.post('${API_BASE_URL}/events', event);
+      try {
+        if (editingEvent) {
+          await axios.put(`${API_BASE_URL}/events/${editingEvent._id}`, event);
+        } else {
+          // Fix the interpolation here
+          await axios.post(`${API_BASE_URL}/events`, event);
+        }
+      } catch (error) {
+        console.error('Error saving event:', error);
       }
-    } catch (error) {
-      console.error('Error saving event:', error);
-    }
   };
 
   const handleFormSubmit = async () => {
