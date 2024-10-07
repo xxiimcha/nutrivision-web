@@ -28,49 +28,21 @@ async function insertSampleData() {
   try {
     const records = [
       {
-        address: '123 Main St',
+        address: '123 Main St, Townsville',
         guardian: 'John Doe',
-        name: 'Child A',
-        dob: new Date(2020, 4, 20), // May 20, 2020
-        gender: 'Male',
-        height: '80 cm',
-        weight: '12 kg',
-        dateOfWeighing: new Date(),
-        ageInMonths: 40,
-        weightForAge: 'Normal',
-        heightForAge: 'Normal',
-        weightForHeight: 'Normal',
-        nutritionStatus: 'Normal',
-      },
-      {
-        address: '456 Oak St',
-        guardian: 'Jane Doe',
-        name: 'Child B',
-        dob: new Date(2019, 7, 15), // August 15, 2019
+        name: 'Jane Doe',
+        dob: new Date('2020-01-15'), // Birthdate example
         gender: 'Female',
-        height: '75 cm',
-        weight: '9 kg',
-        dateOfWeighing: new Date(),
-        ageInMonths: 55,
-        weightForAge: 'Malnourished',
-        heightForAge: 'Below Average',
-        weightForHeight: 'Underweight',
-        nutritionStatus: 'Malnourished',
-      },
-      {
-        address: '789 Pine St',
-        guardian: 'Alice Smith',
-        name: 'Child C',
-        dob: calculateDobFromAgeInMonths(59), // Calculated DOB for 59 months
-        gender: 'Male',
-        height: '90 cm',
-        weight: '25 kg',
-        dateOfWeighing: new Date(),
-        ageInMonths: 59, // Valid: Exactly 59 months
-        weightForAge: 'Overweight',
-        heightForAge: 'Normal',
-        weightForHeight: 'Overweight',
-        nutritionStatus: 'Obese',
+        height: '85', // in cm
+        weight: '15', // in kg
+        dateOfWeighing: new Date(), // Date of weighing today
+        ageInMonths: 48, // Example for 4 years old
+        weightForAge: 'Normal',
+        heightForAge: 'Below Normal',
+        weightForHeight: 'Above Normal',
+        nutritionStatus: 'Obese', // Example nutrition status
+        goalWeight: '16.5', // Example goal weight
+        userId: '67032e49adaa1b6b9c86f2fa' // Make sure to replace this with actual user id
       },
     ];
 

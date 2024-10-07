@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const patientRecordSchema = new mongoose.Schema({
-  referenceNumber: { type: String, unique: true },
+  referenceNumber: { type: String, unique: true},
   address: String,
   guardian: String,
   name: String,
@@ -14,7 +14,9 @@ const patientRecordSchema = new mongoose.Schema({
   weightForAge: String,
   heightForAge: String,
   weightForHeight: String,
-  nutritionStatus: String, // New field for nutrition status
+  nutritionStatus: String,
+  goalWeight: String, // Added field for goal weight
+  userId: String // Removed unique constraint
 });
 
 // Function to generate a random alphanumeric string

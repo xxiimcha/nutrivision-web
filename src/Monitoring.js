@@ -18,62 +18,38 @@ const Monitoring = () => {
   const [newImprovement, setNewImprovement] = useState('');
   const { role } = useContext(UserContext); // Get the user role from context
 
-  // Function to determine the goal weight based on age and height
-  const getGoalWeight = (ageInMonths, height) => {
-    if (ageInMonths >= 0 && ageInMonths <= 1 && height >= 45 && height <= 55) {
-      return 2.5 + (4.5 - 2.5) / 2;
-    } else if (ageInMonths > 1 && ageInMonths <= 3 && height >= 55 && height <= 61) {
-      return 4.5 + (6.5 - 4.5) / 2;
-    } else if (ageInMonths > 3 && ageInMonths <= 6 && height >= 60 && height <= 66) {
-      return 6 + (8 - 6) / 2;
-    } else if (ageInMonths > 6 && ageInMonths <= 12 && height >= 65 && height <= 75) {
-      return 7.5 + (10.5 - 7.5) / 2;
-    } else if (ageInMonths > 12 && ageInMonths <= 24 && height >= 75 && height <= 85) {
-      return 9 + (12.5 - 9) / 2;
-    } else if (ageInMonths > 24 && ageInMonths <= 36 && height >= 85 && height <= 95) {
-      return 11 + (15 - 11) / 2;
-    } else if (ageInMonths > 36 && ageInMonths <= 48 && height >= 95 && height <= 105) {
-      return 12.5 + (18 - 12.5) / 2;
-    } else if (ageInMonths > 48 && ageInMonths <= 59 && height >= 100 && height <= 110) {
-      return 13 + (20 - 13) / 2;
-    } else {
-      return 0; // Return 0 if the age or height does not match any of the ranges
-    }
-  };
-
   // Fetch data from the patient records table and their associated weekly improvements
   useEffect(() => {
     const fetchRecords = async () => {
       try {
         const response = await axios.get(`${API_BASE_URL}/patient-records`);
         const updatedData = await Promise.all(response.data.map(async (record) => {
-          const goalWeight = getGoalWeight(record.ageInMonths, record.height);
+          try {
+            // Fetch the latest weekly improvement for this record
+            const latestImprovementResponse = await axios.get(`${API_BASE_URL}/patient-records/${record._id}/latest-improvement`);
+            const latestImprovement = latestImprovementResponse.data.improvement || 0;  // Default to 0 if not found
+            
+            // Fetch all weekly improvements (logs) for this record
+            const improvementLogsResponse = await axios.get(`${API_BASE_URL}/patient-records/${record._id}/improvements`);
+            const improvementLogs = improvementLogsResponse.data; // Store all logs
   
-          // Fetch weekly improvements for this record
-          const improvementsResponse = await axios.get(`${API_BASE_URL}/patient-records/${record._id}/improvements`);
-          const improvementLogs = improvementsResponse.data.map(improvement => ({
-            weekNumber: improvement.weekNumber,
-            improvement: improvement.improvement
-          }));
-  
-          // Calculate the latest weight based on improvements
-          const latestWeight = improvementLogs.length > 0
-            ? record.weight + improvementLogs.reduce((acc, val) => acc + val.improvement, 0)
-            : record.weight;
-  
-          return { ...record, goalWeight, improvementLogs, latestWeight };
+            return { ...record, latestImprovement, improvementLogs };
+          } catch (error) {
+            // If no improvements are found, set latest improvement and logs to empty values
+            console.error(`No improvements found for patient ${record._id}:`, error);
+            return { ...record, latestImprovement: 0, improvementLogs: [] };  // Default to empty logs
+          }
         }));
   
-        console.log("Fetched Data:", updatedData);  // Check the fetched data here
+        console.log("Fetched Data:", updatedData);
         setData(updatedData);
       } catch (error) {
-        console.error('Error fetching patient records or weekly improvements:', error);
+        console.error('Error fetching patient records or improvements:', error);
       }
     };
-  
     fetchRecords();
   }, []);  
-
+  
   const handleOpenModal = (index) => {
     setSelectedIndex(index);
     setOpenModal(true);
@@ -84,27 +60,41 @@ const Monitoring = () => {
     setNewImprovement('');
   };
 
-  const calculatePercentageOfGoalAchieved = (latestWeight, goalWeight, nutritionStatus) => {
-    // Ensure latestWeight and goalWeight are valid numbers
+  const calculatePercentageOfGoalAchieved = (originalWeight, latestImprovement, goalWeight) => {
+    // Calculate the latest weight (sum of original weight and latest improvement)
+    const latestWeight =latestImprovement || 0;  // Add improvement to the original weight if it exists
+
+    // Add debugging information to check the values
+    console.log('Original Weight:', originalWeight);
+    console.log('Latest Improvement:', latestImprovement);
+    console.log('Goal Weight:', goalWeight);
+    console.log('Latest Weight:', latestWeight);
+
+    // Ensure originalWeight and goalWeight are valid numbers
     if (isNaN(latestWeight) || isNaN(goalWeight) || goalWeight <= 0) {
       return 0; // Return 0% if values are not valid or goal weight is zero or less
     }
-  
-    let percentageAchieved = 0;
-  
-    // Determine whether the patient needs to gain or lose weight based on nutritionStatus
-    if (nutritionStatus === 'Malnourished') {
-      // If malnourished, they should gain weight
-      percentageAchieved = ((latestWeight / goalWeight) * 100).toFixed(2);
-    } else if (nutritionStatus === 'Obese') {
-      // If obese, they should lose weight (goalWeight should be lower than current weight)
-      const weightLossGoal = latestWeight - goalWeight; // Calculate weight loss needed
-      percentageAchieved = ((weightLossGoal / latestWeight) * 100).toFixed(2);
+
+    // If the latest weight is still the same as the original weight and less than the goal, return 0%
+    if (latestWeight === originalWeight && originalWeight < goalWeight) {
+      return 0; // No progress made toward the goal
     }
-  
-    // Ensure the percentage doesn't exceed 100% and avoid negative percentages
-    return Math.max(0, Math.min(percentageAchieved, 100));
-  };  
+
+    // If the latest weight is already higher or equal to the goal weight, it's 100%
+    if (latestWeight >= goalWeight) {
+      return 100;
+    }
+
+    // Calculate the percentage of the goal achieved based on the latest weight
+    let percentageAchieved = ((latestWeight / goalWeight) * 100).toFixed(2);
+
+    // Log the percentage achieved
+    console.log('Percentage Achieved Before Limiting:', percentageAchieved);
+
+    // Ensure the percentage doesn't exceed 100%
+    return Math.min(percentageAchieved, 100);
+};
+
 
   const determineAction = (nutritionStatus) => {
     if (nutritionStatus === 'Malnourished') {
@@ -120,17 +110,15 @@ const Monitoring = () => {
       const selectedRecord = data[selectedIndex];
   
       try {
-        // Send the improvement directly to the backend without converting it to a float
+        // Send the improvement directly to the backend without any calculation
         await axios.post(`${API_BASE_URL}/patient-records/${selectedRecord._id}/add-improvement`, {
-          currentWeight: newImprovement,  // Directly pass the input value
+          improvement: newImprovement,  // Directly pass the improvement value
         });
   
-        // Update the UI locally
+        // Update the UI locally by adding the improvement
         const updatedData = data.map((item, i) => {
           if (i === selectedIndex) {
-            const newLogs = [...item.improvementLogs, { weekNumber: item.improvementLogs.length + 1, weightGain: newImprovement }];
-            const latestWeight = item.weight + newLogs.reduce((acc, val) => acc + parseFloat(val.weightGain), 0);
-            return { ...item, improvementLogs: newLogs, latestWeight };
+            return { ...item, latestImprovement: newImprovement };
           }
           return item;
         });
@@ -142,8 +130,8 @@ const Monitoring = () => {
         alert('Failed to add improvement. Please try again.');
       }
     }
-  };  
-
+  };
+  
   const filteredData = data.filter(row =>
     row.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -181,7 +169,7 @@ const Monitoring = () => {
               <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>Weekly Improvement (kg)</TableCell>
               <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>Percentage of Goal Achieved</TableCell>
               <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>Nutritional Status</TableCell>
-              <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>Action Required</TableCell> {/* New Column */}
+              <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>Action Required</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -191,7 +179,7 @@ const Monitoring = () => {
               </TableRow>
             ) : (
               filteredData.map((row, index) => {
-                const percentageOfGoalAchieved = calculatePercentageOfGoalAchieved(row.latestWeight, row.goalWeight, row.nutritionStatus);
+                const percentageOfGoalAchieved = calculatePercentageOfGoalAchieved(row.weight, row.latestImprovement, row.goalWeight);
                 const actionRequired = determineAction(row.nutritionStatus);
 
                 return (
@@ -202,16 +190,13 @@ const Monitoring = () => {
                     <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>{row.height}</TableCell>
                     <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>{row.goalWeight}</TableCell>
                     <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>
-                      <Button
-                        variant="outlined"
-                        onClick={() => handleOpenModal(index)}
-                      >
+                      <Button variant="outlined" onClick={() => handleOpenModal(index)}>
                         View Logs
                       </Button>
                     </TableCell>
                     <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>{percentageOfGoalAchieved}%</TableCell>
                     <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>{row.nutritionStatus}</TableCell>
-                    <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>{actionRequired}</TableCell> {/* New Cell */}
+                    <TableCell sx={{ borderRight: '1px solid rgba(224, 224, 224, 1)' }}>{actionRequired}</TableCell>
                   </TableRow>
                 );
               })
@@ -241,8 +226,8 @@ const Monitoring = () => {
                   <TableBody>
                     {data[selectedIndex].improvementLogs.map((log, i) => (
                       <TableRow key={i}>
-                        <TableCell>{log.weekNumber}</TableCell>
-                        <TableCell>{log.improvement}</TableCell>
+                        <TableCell>Week {log.weekNumber}</TableCell>
+                        <TableCell>{log.improvement} KG</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -265,11 +250,10 @@ const Monitoring = () => {
                 <TextField
                   fullWidth
                   label="Add New Weight (kg)"
-                  type="text"  // Use 'text' to allow custom input handling
+                  type="text"
                   value={newImprovement}
                   onChange={(e) => {
                     const value = e.target.value;
-                    // Only allow numbers and one decimal point
                     const regex = /^[0-9]*\.?[0-9]*$/;
                     if (regex.test(value)) {
                       setNewImprovement(value);

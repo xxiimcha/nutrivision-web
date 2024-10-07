@@ -38,12 +38,13 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST route to add an improvement to a specific patient record
+// POST route to add an improvement to a specific patient record
 router.post('/:id/add-improvement', async (req, res) => {
   try {
     const { id } = req.params;
-    const { currentWeight } = req.body;
+    const { improvement } = req.body;
 
-    console.log("Received Improvement Data:", { id, currentWeight });
+    console.log("Received Improvement Data:", { id, improvement });
 
     // Find the patient record by ID
     const patientRecord = await PatientRecord.findById(id);
@@ -51,30 +52,12 @@ router.post('/:id/add-improvement', async (req, res) => {
       return res.status(404).json({ message: 'Patient record not found' });
     }
 
-    // Fetch the most recent improvement to calculate weight gain
-    const lastImprovement = await WeeklyImprovement.findOne({ patientId: id }).sort({ weekNumber: -1 });
-    const previousWeight = lastImprovement ? lastImprovement.currentWeight : patientRecord.weight;
-
-    // Convert both currentWeight and previousWeight to numbers
-    const currentWeightNum = parseFloat(currentWeight);
-    const previousWeightNum = parseFloat(previousWeight);
-
-    // Calculate the weight gain
-    const weightGain = currentWeightNum - previousWeightNum;
-
-    console.log("Calculated Weight Gain:", weightGain);
-
-    if (isNaN(weightGain)) {
-      return res.status(400).json({ message: 'Invalid weight gain calculation' });
-    }
-
-    // Create a new weekly improvement entry
+    // Create a new weekly improvement entry without calculation
     const weekNumber = (await WeeklyImprovement.countDocuments({ patientId: id })) + 1;
     const newImprovement = new WeeklyImprovement({
       patientId: id,
       weekNumber,
-      currentWeight: currentWeightNum,  // Store the numeric value of the weight
-      weightGain,
+      improvement: parseFloat(improvement),  // Store the improvement value directly
     });
 
     // Save the weekly improvement to the database
@@ -83,6 +66,26 @@ router.post('/:id/add-improvement', async (req, res) => {
     res.status(200).json({ message: 'Improvement added successfully', improvement: newImprovement });
   } catch (error) {
     console.error('Error adding improvement:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Route to fetch the latest improvement for a patient
+router.get('/:id/latest-improvement', async (req, res) => {
+  try {
+    const { id } = req.params;  // Get patient id from URL
+
+    // Find the latest improvement by sorting week numbers in descending order
+    const latestImprovement = await WeeklyImprovement.findOne({ patientId: id })
+      .sort({ weekNumber: -1 });  // Sort to get the latest improvement
+
+    if (!latestImprovement) {
+      return res.status(404).json({ message: 'No improvements found for this patient' });
+    }
+
+    res.status(200).json({ improvement: latestImprovement.improvement });
+  } catch (error) {
+    console.error('Error fetching latest improvement:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 });
