@@ -1,4 +1,5 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const Event = require('../models/Event');
 const Notification = require('../models/Notification'); // Import Notification model
 
@@ -51,9 +52,49 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Update an event, including status
+// Route to cancel an event
+router.put('/:id/cancel', async (req, res) => {
+  const { id } = req.params;
+
+  // Check if the ID is a valid MongoDB ObjectId
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ message: 'Invalid Event ID' });
+  }
+
+  try {
+    // Find the event by ID and update its status to 'cancelled'
+    const cancelledEvent = await Event.findByIdAndUpdate(
+      id,
+      { status: 'cancelled' },
+      { new: true }
+    );
+
+    if (!cancelledEvent) {
+      return res.status(404).json({ message: 'Event not found' });
+    }
+
+    // Create a global notification for the event cancellation
+    const notification = new Notification({
+      title: 'Event Canceled',
+      message: `Event "${cancelledEvent.title}" scheduled for ${cancelledEvent.date} has been canceled.`,
+    });
+
+    await notification.save();
+
+    res.status(200).json({ message: 'Event cancelled', event: cancelledEvent });
+  } catch (error) {
+    res.status(500).json({ message: 'Error cancelling event', error });
+  }
+});
+
 router.put('/:id', async (req, res) => {
   const { id } = req.params;
+
+  // Check if the ID is a valid MongoDB ObjectId
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ message: 'Invalid Event ID' });
+  }
+
   const { title, location, date, time, recipient, status } = req.body;
 
   try {

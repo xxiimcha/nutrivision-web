@@ -191,14 +191,23 @@ function Calendar() {
 
   // Confirm cancellation
   const handleConfirmCancelEvent = async () => {
-    const updatedEvent = { ...eventToCancel, status: 'cancelled' };
-    setEvents(events.map(e => (e._id === eventToCancel._id ? updatedEvent : e)));
-
-    await saveEventToBackend(updatedEvent); // Save the cancelled event to the backend
-    setSnackbarMessage('Event cancelled successfully');
-    setSnackbarOpen(true);
-
-    setShowCancelDialog(false); // Close the confirmation dialog
+    try {
+      // Call the API to cancel the event
+      const response = await axios.put(`${API_BASE_URL}/events/${eventToCancel._id}/cancel`);
+      const cancelledEvent = response.data.event;
+  
+      // Update the events list with the cancelled event
+      setEvents(events.map(e => (e._id === eventToCancel._id ? cancelledEvent : e)));
+  
+      setSnackbarMessage('Event cancelled successfully');
+      setSnackbarOpen(true);
+    } catch (error) {
+      console.error('Error cancelling event:', error);
+      setSnackbarMessage('Failed to cancel event');
+      setSnackbarOpen(true);
+    } finally {
+      setShowCancelDialog(false); // Close the confirmation dialog
+    }
   };
 
   const dayPropGetter = (date) => {
@@ -217,12 +226,33 @@ function Calendar() {
     return {};
   };
 
+  const statusColors = {
+    upcoming: '#4caf50',   // Green
+    cancelled: '#f44336',  // Red
+    completed: '#2196f3',  // Blue
+  };
+
+  const renderLegend = () => (
+    <Box sx={{ marginBottom: 3, display: 'flex', justifyContent: 'space-evenly' }}>
+      {Object.entries(statusColors).map(([status, color]) => (
+        <Box key={status} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box sx={{ width: 20, height: 20, bgcolor: color, borderRadius: '50%' }} />
+          <Typography>{status.charAt(0).toUpperCase() + status.slice(1)}</Typography>
+        </Box>
+      ))}
+    </Box>
+  );
+
   return (
     <Box display="flex" height="800px" padding={2}>
       <Box width="70%">
         <Typography variant="h4" gutterBottom style={{ marginBottom: '20px' }}>
           Event Calendar
         </Typography>
+        
+        {/* Render the legend */}
+        {renderLegend()}
+
         <Paper elevation={3} style={{ padding: '20px' }}>
           <BigCalendar
             localizer={localizer}
@@ -233,7 +263,15 @@ function Calendar() {
             selectable
             onSelectSlot={handleDateSelect}
             onSelectEvent={handleEditEvent}
-            dayPropGetter={dayPropGetter}
+            eventPropGetter={(event) => {
+              const backgroundColor = statusColors[event.status]; // Map status to color
+              return {
+                style: {
+                  backgroundColor: backgroundColor || '#2196f3', // Fallback to blue if status not found
+                  color: 'white', // Ensure text is white for better readability
+                },
+              };
+            }}
             components={{
               toolbar: (props) => <Toolbar {...props} />,
             }}
@@ -260,14 +298,14 @@ function Calendar() {
                   {event.title}
                 </Typography>
                 <Typography sx={{ mb: 1.5 }} color="text.secondary">
-                  {/* Format only the date part */}
+                  {/* Format the date */}
                   {moment(event.start).format('MMMM Do YYYY')}
                 </Typography>
                 <Typography variant="body2">
-                  <strong>Location:</strong> {event.location}
+                  <strong>Time:</strong> {moment(event.time, 'HH:mm').format('h:mm A')} {/* Format the time to 12-hour AM/PM format */}
                 </Typography>
                 <Typography variant="body2">
-                  <strong>Recipient:</strong> {event.recipient}
+                  <strong>Location:</strong> {event.location}
                 </Typography>
                 <Typography variant="body2">
                   <strong>Status:</strong> {event.status}
@@ -276,9 +314,6 @@ function Calendar() {
               <CardActions>
                 <IconButton color="primary" onClick={() => handleEditEvent(event)}>
                   <EditIcon />
-                </IconButton>
-                <IconButton color="secondary" onClick={() => handleCancelEvent(event)}>
-                  <DeleteIcon />
                 </IconButton>
               </CardActions>
             </Card>
@@ -290,13 +325,14 @@ function Calendar() {
                   {event.title}
                 </Typography>
                 <Typography sx={{ mb: 1.5 }} color="text.secondary">
+                  {/* Format the date */}
                   {moment(event.start).format('MMMM Do YYYY')}
                 </Typography>
                 <Typography variant="body2">
-                  <strong>Location:</strong> {event.location}
+                  <strong>Time:</strong> {moment(event.time, 'HH:mm').format('h:mm A')}
                 </Typography>
                 <Typography variant="body2">
-                  <strong>Recipient:</strong> {event.recipient}
+                  <strong>Location:</strong> {event.location}
                 </Typography>
               </CardContent>
             </Card>
@@ -308,21 +344,22 @@ function Calendar() {
                   {event.title}
                 </Typography>
                 <Typography sx={{ mb: 1.5 }} color="text.secondary">
+                  {/* Format the date */}
                   {moment(event.start).format('MMMM Do YYYY')}
                 </Typography>
                 <Typography variant="body2">
-                  <strong>Location:</strong> {event.location}
+                  <strong>Time:</strong> {moment(event.time, 'HH:mm').format('h:mm A')}
                 </Typography>
                 <Typography variant="body2">
-                  <strong>Recipient:</strong> {event.recipient}
+                  <strong>Location:</strong> {event.location}
                 </Typography>
               </CardContent>
             </Card>
           ))}
         </Paper>
-      </Box>
 
-      {/* Event modal for adding/editing */}
+      </Box>
+      
       <Modal open={showModal} onClose={() => setShowModal(false)}>
         <Box
           sx={{
@@ -332,15 +369,17 @@ function Calendar() {
             transform: 'translate(-50%, -50%)',
             bgcolor: 'background.paper',
             boxShadow: 24,
+            borderRadius: 4,
             p: 4,
-            maxWidth: 400,
-            width: '90%',
+            maxWidth: 500, // Increased width for better form layout
+            width: '100%',
             textAlign: 'center',
           }}
         >
-          <Typography variant="h5" gutterBottom>
+          <Typography variant="h5" gutterBottom sx={{ fontWeight: 'bold', marginBottom: 2 }}>
             {editingEvent ? 'Edit Event' : 'Add Event'}
           </Typography>
+
           <TextField
             fullWidth
             margin="normal"
@@ -348,7 +387,11 @@ function Calendar() {
             label="Title"
             value={formData.title}
             onChange={handleFormChange}
+            variant="outlined"
+            sx={{ marginBottom: 3 }} // Added more space between form elements
+            disabled={editingEvent && (editingEvent.status === 'completed' || editingEvent.status === 'cancelled')} // Disable if event is completed or cancelled
           />
+
           <TextField
             fullWidth
             margin="normal"
@@ -365,7 +408,11 @@ function Calendar() {
             InputLabelProps={{
               shrink: true,
             }}
+            variant="outlined"
+            sx={{ marginBottom: 3 }}
+            disabled={editingEvent && (editingEvent.status === 'completed' || editingEvent.status === 'cancelled')} // Disable if event is completed or cancelled
           />
+
           <TextField
             fullWidth
             margin="normal"
@@ -373,9 +420,13 @@ function Calendar() {
             label="Location"
             value={formData.location}
             onChange={handleFormChange}
+            variant="outlined"
+            sx={{ marginBottom: 3 }}
+            disabled={editingEvent && (editingEvent.status === 'completed' || editingEvent.status === 'cancelled')} // Disable if event is completed or cancelled
           />
+
           <Grid container spacing={2}>
-            <Grid item xs={6}>
+            <Grid item xs={12}>
               <TextField
                 fullWidth
                 margin="normal"
@@ -387,35 +438,64 @@ function Calendar() {
                 InputLabelProps={{
                   shrink: true,
                 }}
+                variant="outlined"
+                sx={{ marginBottom: 3 }}
+                disabled={editingEvent && (editingEvent.status === 'completed' || editingEvent.status === 'cancelled')} // Disable if event is completed or cancelled
               />
             </Grid>
           </Grid>
-          <Grid container spacing={2} justifyContent="center">
-            <Grid item xs={6}>
-              <Button
-                variant="contained"
-                color="primary"
-                onClick={handleFormSubmit}
-                fullWidth
-                style={{ marginTop: '20px' }}
-              >
-                {editingEvent ? 'Save' : 'Add'}
-              </Button>
+
+          {/* Save Button - Only show if the event is being added or the status is 'upcoming' */}
+          {(!editingEvent || (editingEvent && editingEvent.status === 'upcoming')) && (
+            <Grid container spacing={2} justifyContent="center" sx={{ marginTop: 2 }}>
+              <Grid item xs={6}>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={handleFormSubmit}
+                  fullWidth
+                  sx={{
+                    padding: '10px 0',
+                    fontWeight: 'bold',
+                    borderRadius: 2,
+                    textTransform: 'none', // Disable uppercase text for better readability
+                  }}
+                >
+                  {editingEvent ? 'Save' : 'Add'} {/* Change button text based on whether it's a new or existing event */}
+                </Button>
+              </Grid>
             </Grid>
-            {editingEvent && editingEvent.status === 'upcoming' && (
+          )}
+
+
+          {/* Cancel Event Button - only show if the event is 'upcoming' */}
+          {editingEvent && editingEvent.status === 'upcoming' && (
+            <Grid container spacing={2} justifyContent="center" sx={{ marginTop: 2 }}>
               <Grid item xs={12}>
                 <Button
                   variant="contained"
                   color="error"
                   onClick={() => handleCancelEvent(editingEvent)}
                   fullWidth
-                  style={{ marginTop: '10px' }}
+                  sx={{
+                    padding: '10px 0',
+                    fontWeight: 'bold',
+                    borderRadius: 2,
+                    textTransform: 'none',
+                  }}
                 >
                   Cancel Event
                 </Button>
               </Grid>
-            )}
-          </Grid>
+            </Grid>
+          )}
+
+          {/* If the event is cancelled or completed, display status info */}
+          {(editingEvent && (editingEvent.status === 'completed' || editingEvent.status === 'cancelled')) && (
+            <Typography variant="body2" sx={{ marginTop: 3, color: editingEvent.status === 'completed' ? 'blue' : 'red' }}>
+              This event is {editingEvent.status}.
+            </Typography>
+          )}
         </Box>
       </Modal>
 

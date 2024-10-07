@@ -18,7 +18,8 @@ const PORT = process.env.PORT || 5003;
 app.use(bodyParser.json());
 app.use(cors({
   origin: 'http://localhost:3000', // Ensure your front-end domain is allowed
-  methods: ['GET', 'POST'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE'], 
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
 // MongoDB connection using environment variables
