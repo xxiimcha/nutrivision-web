@@ -70,9 +70,18 @@ function Dashboard() {
 
   return (
     <Box sx={{ padding: 2 }}>
-      <Typography variant="h4" gutterBottom>
-        Health Improvement Dashboard
-      </Typography>
+
+      {(role === 'Admin' || role === 'Super Admin') && (
+        <Typography variant="h4" gutterBottom>
+          Dashboard
+        </Typography>
+      )}
+
+      {(role === 'Nutritionist' || role === 'Health Worker') && (
+        <Typography variant="h4" gutterBottom>
+          Health Improvement Dashboard
+        </Typography>
+      )}
 
       <Grid container spacing={2} sx={{ marginBottom: 2 }}>
         {/* Display Malnourished and Obese Counts for Nutritionist and Health Worker */}
@@ -135,8 +144,8 @@ function Dashboard() {
           </>
         )}
       </Grid>
-
-      {/* Button Group to toggle between weeks and months view */}
+        
+      {(role === 'Nutritionist' || role === 'Health Worker') && (
       <ButtonGroup sx={{ marginBottom: 2 }}>
         <Button
           variant={viewBy === 'weeks' ? 'contained' : 'outlined'}
@@ -151,8 +160,9 @@ function Dashboard() {
           View by Months
         </Button>
       </ButtonGroup>
+      )}
 
-      {/* Line charts for improvements */}
+      {(role === 'Nutritionist' || role === 'Health Worker') && (
       <Grid container spacing={2}>
         <Grid item xs={12} md={6}>
           <Paper sx={{ padding: 2, marginBottom: 2 }}>
@@ -200,6 +210,7 @@ function Dashboard() {
           </Paper>
         </Grid>
       </Grid>
+      )}
     </Box>
   );
 }

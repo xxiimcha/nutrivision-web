@@ -6,13 +6,13 @@ const cors = require('cors');
 const path = require('path');
 const http = require('http');
 const { Server } = require('socket.io');
-const CallSignal = require('./models/CallSignal'); // Import CallSignal model
-const Notification = require('./models/Notification'); // Import Notification model
-const Admin = require('./models/Admin'); // Import Admin model
-const logAction = require('./utils/logAction'); // If you have a logging mechanism
+const CallSignal = require('./models/CallSignal');
+const Notification = require('./models/Notification');
+const Admin = require('./models/Admin');
+const logAction = require('./utils/logAction');
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5003;
 
 // Middleware
 app.use(bodyParser.json());
@@ -23,8 +23,9 @@ const mongoUri = process.env.MONGO_URI || 'fallback-mongo-uri';
 mongoose.connect(mongoUri, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
-}).then(async () => {
-  console.log('MongoDB connected');
+})
+.then(async () => {
+  console.log('MongoDB connected successfully.');
 
   // Check for Super Admin existence
   const superAdminEmail = 'superadmin@gmail.com';
@@ -36,16 +37,17 @@ mongoose.connect(mongoUri, {
       firstName: 'Super',
       lastName: 'Admin',
       email: superAdminEmail,
-      password: 'SecurePassword123!', // Make sure to hash the password in real scenarios
+      password: 'SecurePassword123!', // Hash the password for production
       role: 'Super Admin'
     });
 
     await superAdminData.save();
-    console.log('Super Admin account seeded with default credentials');
+    console.log('Super Admin account created with default credentials.');
   } else {
-    console.log('Super Admin already exists');
+    console.log('Super Admin already exists.');
   }
-}).catch((err) => {
+})
+.catch((err) => {
   console.error('MongoDB connection error:', err);
 });
 
@@ -62,6 +64,7 @@ const messageRoutes = require('./routes/messages');
 const notificationsRouter = require('./routes/notifications');
 const logsRoutes = require('./routes/logs'); 
 
+// Mount the routes
 app.use('/api/logs', logsRoutes);
 app.use('/api/admins', adminRoutes);
 app.use('/api/login', loginRoutes);
@@ -75,7 +78,6 @@ app.use('/api/notifications', notificationsRouter);
 // Serve static assets if in production
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static('client/build'));
-
   app.get('*', (req, res) => {
     res.sendFile(path.resolve(__dirname, 'client', 'build', 'index.html'));
   });
@@ -87,7 +89,7 @@ const server = http.createServer(app);
 // Initialize Socket.io
 const io = new Server(server, {
   cors: {
-    origin: '*', // Adjust origin as needed
+    origin: '*', // Update as per your front-end origin
     methods: ['GET', 'POST']
   }
 });
@@ -97,21 +99,19 @@ let connectedUsers = {};
 
 // WebRTC signaling with Socket.io
 io.on('connection', (socket) => {
-  console.log('User connected:', socket.id);
+  console.log(`User connected: ${socket.id}`);
 
   // Save connected users with their userId
   socket.on('register-user', (userId) => {
     if (userId) {
       connectedUsers[userId] = socket.id; // Map userId to socket.id
-      console.log(`User ${userId} is registered with socket ID: ${socket.id}`);
-      console.log('Current connected users:', connectedUsers);
+      console.log(`User ${userId} registered with socket ID: ${socket.id}`);
+      console.log('Connected users:', connectedUsers);
     }
   });
 
   // Handle call initiation
-  socket.on('call-user', async ({ callerId, receiverId, callType }) => {
-    console.log('Connected users:', connectedUsers);
-
+  socket.on('call-user', async ({ callerId, receiverId, callType, roomUrl }) => {
     try {
       // Find the caller's admin info (name)
       const caller = await Admin.findById(callerId).select('firstName lastName');
@@ -125,15 +125,15 @@ io.on('connection', (socket) => {
         receiverId,
         callType,
         status: 'calling',
+        roomUrl, // Add room URL for video/audio call tracking
       });
 
       if (connectedUsers[receiverId]) {
-        io.to(connectedUsers[receiverId]).emit('incoming-call', { callerId, callType });
-        console.log(`Call initiated from ${caller.firstName} ${caller.lastName} to ${receiverId} as a ${callType} call`);
+        io.to(connectedUsers[receiverId]).emit('incoming-call', { callerId, callType, roomUrl });
+        console.log(`Call initiated from ${caller.firstName} ${caller.lastName} to ${receiverId} (${callType})`);
       } else {
+        // If the user is not online, log as missed call
         console.log(`Receiver with ID ${receiverId} is not connected`);
-        callSignal.status = 'missed';
-        console.log(`Missed ${callType} call from ${caller.firstName} ${caller.lastName} to ${receiverId}`);
 
         // Create a missed call notification
         const missedCallNotification = new Notification({
@@ -143,14 +143,13 @@ io.on('connection', (socket) => {
         });
 
         await missedCallNotification.save();
-        console.log('Missed call notification saved');
+        console.log('Missed call notification saved.');
       }
 
       // Save the call signal
       await callSignal.save();
-
-      // Optionally, log the action
       await logAction('CALL_INITIATED', callerId, `Call initiated to ${receiverId} (${callType})`);
+
     } catch (error) {
       console.error('Error during call initiation:', error);
     }
@@ -162,16 +161,12 @@ io.on('connection', (socket) => {
       if (connectedUsers[callerId]) {
         io.to(connectedUsers[callerId]).emit('call-accepted');
 
-        // Update the call status to "accepted"
+        // Update call status
         await CallSignal.findOneAndUpdate(
           { callerId, receiverId, status: 'calling' },
           { status: 'accepted' }
         );
-
         console.log(`Call accepted between ${callerId} and ${receiverId}`);
-
-        // Optionally, log the action
-        await logAction('CALL_ACCEPTED', receiverId, `Call accepted from ${callerId}`);
       }
     } catch (error) {
       console.error('Error accepting call:', error);
@@ -184,16 +179,12 @@ io.on('connection', (socket) => {
       if (connectedUsers[callerId]) {
         io.to(connectedUsers[callerId]).emit('call-declined');
 
-        // Update the call status to "declined"
+        // Update call status
         await CallSignal.findOneAndUpdate(
           { callerId, receiverId, status: 'calling' },
           { status: 'declined' }
         );
-
         console.log(`Call declined between ${callerId} and ${receiverId}`);
-
-        // Optionally, log the action
-        await logAction('CALL_DECLINED', receiverId, `Call declined from ${callerId}`);
       }
     } catch (error) {
       console.error('Error declining call:', error);
@@ -206,35 +197,31 @@ io.on('connection', (socket) => {
       if (connectedUsers[callerId]) io.to(connectedUsers[callerId]).emit('call-ended');
       if (connectedUsers[receiverId]) io.to(connectedUsers[receiverId]).emit('call-ended');
 
-      // Update the call status to "ended"
+      // Update call status
       await CallSignal.findOneAndUpdate(
         { callerId, receiverId, status: { $in: ['accepted', 'calling'] } },
         { status: 'ended' }
       );
-
       console.log(`Call ended between ${callerId} and ${receiverId}`);
-
-      // Optionally, log the action
-      await logAction('CALL_ENDED', callerId, `Call ended with ${receiverId}`);
     } catch (error) {
       console.error('Error ending call:', error);
     }
   });
 
-  // Handle disconnection
+  // Handle user disconnection
   socket.on('disconnect', () => {
-    console.log('User disconnected:', socket.id);
-    for (let userId in connectedUsers) {
+    console.log(`User disconnected: ${socket.id}`);
+    for (const userId in connectedUsers) {
       if (connectedUsers[userId] === socket.id) {
         delete connectedUsers[userId];
-        console.log(`User ${userId} removed from connected users`);
+        console.log(`User ${userId} removed from connected users.`);
         break;
       }
     }
   });
 });
 
-// Listen on the defined PORT
+// Start server on specified port
 server.listen(PORT, () => {
-  console.log(`Server is running on http://localhost:${PORT}`);
+  console.log(`Server running at http://localhost:${PORT}`);
 });

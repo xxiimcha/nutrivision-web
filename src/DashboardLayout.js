@@ -13,6 +13,7 @@ import ListItemText from '@mui/material/ListItemText';
 import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
 import DashboardIcon from '@mui/icons-material/Dashboard';
+import AssignmentTurnedInIcon from '@mui/icons-material/AssignmentTurnedIn';
 import PeopleIcon from '@mui/icons-material/People';
 import PlansIcon from '@mui/icons-material/ListAlt';
 import HomeIcon from '@mui/icons-material/Home';
@@ -205,15 +206,15 @@ function DashboardLayout(props) {
               </ListItemIcon>
               <ListItemText primary="Admin" />
             </CustomListItem>
-            {/* Add Activity Log Nav Item */}
-            <CustomListItem sx={{ pl: 4 }} button component={Link} to="/dashboard/activity-log">
-              <ListItemIcon>
-                <DashboardIcon />
-              </ListItemIcon>
-              <ListItemText primary="Activity Log" />
-            </CustomListItem>
           </List>
         </Collapse>
+        
+        <CustomListItem button component={Link} to="/dashboard/activity-log">
+          <ListItemIcon>
+            <AssignmentTurnedInIcon />
+          </ListItemIcon>
+          <ListItemText primary="Activity Logs" />
+        </CustomListItem>
 
         {(role === 'Nutritionist' || role === 'Health Worker') && (
           <CustomListItem button onClick={toggleStatusDropdown}>

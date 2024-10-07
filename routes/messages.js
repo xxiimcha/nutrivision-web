@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const Message = require('../models/Message');
+const Notification = require('../models/Notification');
+const Admin = require('../models/Admin');
 
 // Endpoint to send a message
 router.post('/send', async (req, res) => {
@@ -11,12 +13,25 @@ router.post('/send', async (req, res) => {
   }
 
   try {
+    const senderInfo = await Admin.findById(sender, 'firstName lastName');
+    if (!senderInfo) {
+      return res.status(404).json({ message: 'Sender not found' });
+    }
+
+    const senderFullName = `${senderInfo.firstName} ${senderInfo.lastName}`;
     const message = new Message({
       sender,
       receiver,
       text,
     });
     await message.save();
+
+    const notification = new Notification({
+      userId: receiver,  // Set the receiver as the userId for the notification
+      title: 'New Message Received',
+      message: `You have received a new message from ${senderFullName}.`,
+    });
+    await notification.save();
     res.status(200).json(message);
   } catch (error) {
     console.error('Error sending message:', error);

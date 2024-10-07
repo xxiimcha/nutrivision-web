@@ -23,6 +23,8 @@ import axios from 'axios';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+
 function Admin() {
   const [adminDetails, setAdminDetails] = useState({
     firstName: '',
@@ -40,7 +42,7 @@ function Admin() {
   useEffect(() => {
     const fetchAdmins = async () => {
       try {
-        const response = await axios.get('http://localhost:5000/api/admins');
+        const response = await axios.get(`${API_BASE_URL}/admins`);
         const adminsWithIncrementalId = response.data.map((admin, index) => ({
           ...admin,
           id: index + 1, // Use index + 1 to make the ID start from 1
@@ -69,7 +71,7 @@ function Admin() {
 
     if (editMode) {
       try {
-        const response = await axios.put(`http://localhost:5000/api/admins/${selectedAdminId}`, {
+        const response = await axios.put(`${API_BASE_URL}/admins/${selectedAdminId}`, {
           firstName,
           lastName,
           email,
@@ -91,7 +93,7 @@ function Admin() {
       }
     } else {
       try {
-        const response = await axios.post('http://localhost:5000/api/admins', {
+        const response = await axios.post(`${API_BASE_URL}/admins`, {
           firstName,
           lastName,
           email,
@@ -141,7 +143,7 @@ function Admin() {
 
   const handleConfirmDelete = async () => {
     try {
-      await axios.delete(`http://localhost:5000/api/admins/${adminToDelete.id}`);
+      await axios.delete(`${API_BASE_URL}/admins/${adminToDelete.id}`);
       setAdmins(admins.filter((admin) => admin.id !== adminToDelete.id));
       setDeleteConfirmationOpen(false);
       toast.success('Admin deleted successfully.');
