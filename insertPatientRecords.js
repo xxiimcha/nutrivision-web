@@ -41,7 +41,6 @@ async function insertSampleData() {
         heightForAge: 'Below Normal',
         weightForHeight: 'Above Normal',
         nutritionStatus: 'Obese', // Example nutrition status
-        goalWeight: '16.5', // Example goal weight
         userId: '67032e49adaa1b6b9c86f2fa' // Make sure to replace this with actual user id
       },
     ];

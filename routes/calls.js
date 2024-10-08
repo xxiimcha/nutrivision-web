@@ -1,25 +1,29 @@
+// routes/calls.js
 const express = require('express');
 const router = express.Router();
+const CallSignal = require('../models/CallSignal'); // Assuming a Mongoose model for CallSignal
 
-// Handle WebRTC offer
-router.post('/offer', (req, res) => {
-  const { offer, to } = req.body;
-  req.io.to(to).emit('receiveOffer', { offer, from: req.body.from });
-  res.status(200).send({ message: 'Offer sent' });
-});
+router.post('/offer', async (req, res) => {
+  const { from, to, callType, roomUrl } = req.body;
 
-// Handle WebRTC answer
-router.post('/answer', (req, res) => {
-  const { answer, to } = req.body;
-  req.io.to(to).emit('receiveAnswer', { answer });
-  res.status(200).send({ message: 'Answer sent' });
-});
+  try {
+    // Save the call signal to the database
+    const newCallSignal = new CallSignal({
+      callerId: from,
+      receiverId: to,
+      callType,
+      roomLink: roomUrl,
+      status: 'calling',
+      startedAt: Date.now(),
+    });
 
-// Handle ICE candidate exchange
-router.post('/candidate', (req, res) => {
-  const { candidate, to } = req.body;
-  req.io.to(to).emit('receiveCandidate', { candidate });
-  res.status(200).send({ message: 'Candidate sent' });
+    await newCallSignal.save();
+
+    res.status(200).json({ message: 'Call offer saved', roomUrl });
+  } catch (error) {
+    console.error('Error saving call offer:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
 });
 
 module.exports = router;

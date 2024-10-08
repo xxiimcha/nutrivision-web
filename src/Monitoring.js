@@ -6,7 +6,7 @@ import {
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import axios from 'axios';
-import { UserContext } from './context/UserContext'; // Assuming you have a UserContext for role information
+import { UserContext } from './context/UserContext';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
@@ -16,7 +16,25 @@ const Monitoring = () => {
   const [openModal, setOpenModal] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(null);
   const [newImprovement, setNewImprovement] = useState('');
-  const { role } = useContext(UserContext); // Get the user role from context
+  const { role } = useContext(UserContext);
+
+  // Function to compute goal weight based on age and height
+  const computeGoalWeight = (ageInMonths, height) => {
+    let goalWeight;
+
+    // Define weight ranges based on age
+    if (ageInMonths <= 1) goalWeight = [2.5, 4.5];
+    else if (ageInMonths <= 3) goalWeight = [4.5, 6.5];
+    else if (ageInMonths <= 6) goalWeight = [6, 8];
+    else if (ageInMonths <= 12) goalWeight = [7.5, 10.5];
+    else if (ageInMonths <= 24) goalWeight = [9, 12.5];
+    else if (ageInMonths <= 36) goalWeight = [11, 15];
+    else if (ageInMonths <= 48) goalWeight = [12.5, 18];
+    else if (ageInMonths <= 59) goalWeight = [13, 20];
+
+    // Calculate an average weight based on the goal range
+    return goalWeight ? (goalWeight[0] + goalWeight[1]) / 2 : 0;  // Return 0 if not applicable
+  };
 
   // Fetch data from the patient records table and their associated weekly improvements
   useEffect(() => {
@@ -27,20 +45,22 @@ const Monitoring = () => {
           try {
             // Fetch the latest weekly improvement for this record
             const latestImprovementResponse = await axios.get(`${API_BASE_URL}/patient-records/${record._id}/latest-improvement`);
-            const latestImprovement = latestImprovementResponse.data.improvement || 0;  // Default to 0 if not found
-            
+            const latestImprovement = latestImprovementResponse.data.improvement || 0;
+
             // Fetch all weekly improvements (logs) for this record
             const improvementLogsResponse = await axios.get(`${API_BASE_URL}/patient-records/${record._id}/improvements`);
-            const improvementLogs = improvementLogsResponse.data; // Store all logs
-  
-            return { ...record, latestImprovement, improvementLogs };
+            const improvementLogs = improvementLogsResponse.data;
+
+            // Compute goal weight based on age and height
+            const goalWeight = computeGoalWeight(record.ageInMonths, record.height); // Assuming ageInMonths and height are in record
+
+            return { ...record, latestImprovement, improvementLogs, goalWeight };
           } catch (error) {
-            // If no improvements are found, set latest improvement and logs to empty values
             console.error(`No improvements found for patient ${record._id}:`, error);
-            return { ...record, latestImprovement: 0, improvementLogs: [] };  // Default to empty logs
+            return { ...record, latestImprovement: 0, improvementLogs: [], goalWeight: 0 };
           }
         }));
-  
+
         console.log("Fetched Data:", updatedData);
         setData(updatedData);
       } catch (error) {
@@ -48,8 +68,8 @@ const Monitoring = () => {
       }
     };
     fetchRecords();
-  }, []);  
-  
+  }, []);
+
   const handleOpenModal = (index) => {
     setSelectedIndex(index);
     setOpenModal(true);
@@ -61,14 +81,7 @@ const Monitoring = () => {
   };
 
   const calculatePercentageOfGoalAchieved = (originalWeight, latestImprovement, goalWeight) => {
-    // Calculate the latest weight (sum of original weight and latest improvement)
-    const latestWeight =latestImprovement || 0;  // Add improvement to the original weight if it exists
-
-    // Add debugging information to check the values
-    console.log('Original Weight:', originalWeight);
-    console.log('Latest Improvement:', latestImprovement);
-    console.log('Goal Weight:', goalWeight);
-    console.log('Latest Weight:', latestWeight);
+    const latestWeight = latestImprovement || 0;
 
     // Ensure originalWeight and goalWeight are valid numbers
     if (isNaN(latestWeight) || isNaN(goalWeight) || goalWeight <= 0) {
@@ -77,7 +90,7 @@ const Monitoring = () => {
 
     // If the latest weight is still the same as the original weight and less than the goal, return 0%
     if (latestWeight === originalWeight && originalWeight < goalWeight) {
-      return 0; // No progress made toward the goal
+      return 0;
     }
 
     // If the latest weight is already higher or equal to the goal weight, it's 100%
@@ -88,13 +101,8 @@ const Monitoring = () => {
     // Calculate the percentage of the goal achieved based on the latest weight
     let percentageAchieved = ((latestWeight / goalWeight) * 100).toFixed(2);
 
-    // Log the percentage achieved
-    console.log('Percentage Achieved Before Limiting:', percentageAchieved);
-
-    // Ensure the percentage doesn't exceed 100%
     return Math.min(percentageAchieved, 100);
-};
-
+  };
 
   const determineAction = (nutritionStatus) => {
     if (nutritionStatus === 'Malnourished') {
@@ -108,21 +116,19 @@ const Monitoring = () => {
   const handleAddImprovement = async () => {
     if (newImprovement && selectedIndex !== null) {
       const selectedRecord = data[selectedIndex];
-  
+
       try {
-        // Send the improvement directly to the backend without any calculation
         await axios.post(`${API_BASE_URL}/patient-records/${selectedRecord._id}/add-improvement`, {
-          improvement: newImprovement,  // Directly pass the improvement value
+          improvement: newImprovement,
         });
-  
-        // Update the UI locally by adding the improvement
+
         const updatedData = data.map((item, i) => {
           if (i === selectedIndex) {
             return { ...item, latestImprovement: newImprovement };
           }
           return item;
         });
-  
+
         setData(updatedData);
         handleCloseModal();
       } catch (error) {
@@ -131,7 +137,7 @@ const Monitoring = () => {
       }
     }
   };
-  
+
   const filteredData = data.filter(row =>
     row.name.toLowerCase().includes(searchTerm.toLowerCase())
   );

@@ -10,7 +10,8 @@ router.post('/add', async (req, res) => {
     await newRecord.save();
     res.status(201).json({ message: 'Patient record added successfully', referenceNumber: newRecord.referenceNumber });
   } catch (error) {
-    res.status(400).json({ message: 'Error adding patient record', error });
+    console.error('Error adding patient record:', error);
+    res.status(400).json({ message: 'Error adding patient record', error: error.message });
   }
 });
 
@@ -20,7 +21,8 @@ router.get('/', async (req, res) => {
     const records = await PatientRecord.find();
     res.status(200).json(records);
   } catch (error) {
-    res.status(400).json({ message: 'Error fetching patient records', error });
+    console.error('Error fetching patient records:', error);
+    res.status(500).json({ message: 'Error fetching patient records', error: error.message });
   }
 });
 
@@ -33,11 +35,11 @@ router.get('/:id', async (req, res) => {
     }
     res.status(200).json(record);
   } catch (error) {
-    res.status(400).json({ message: 'Error fetching patient record', error });
+    console.error('Error fetching patient record:', error);
+    res.status(500).json({ message: 'Error fetching patient record', error: error.message });
   }
 });
 
-// POST route to add an improvement to a specific patient record
 // POST route to add an improvement to a specific patient record
 router.post('/:id/add-improvement', async (req, res) => {
   try {
@@ -57,7 +59,7 @@ router.post('/:id/add-improvement', async (req, res) => {
     const newImprovement = new WeeklyImprovement({
       patientId: id,
       weekNumber,
-      improvement: parseFloat(improvement),  // Store the improvement value directly
+      improvement: parseFloat(improvement) || 0,  // Store the improvement value directly
     });
 
     // Save the weekly improvement to the database
@@ -66,18 +68,17 @@ router.post('/:id/add-improvement', async (req, res) => {
     res.status(200).json({ message: 'Improvement added successfully', improvement: newImprovement });
   } catch (error) {
     console.error('Error adding improvement:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    res.status(500).json({ message: 'Internal server error', error: error.message });
   }
 });
 
-// Route to fetch the latest improvement for a patient
+// GET route to fetch the latest improvement for a patient
 router.get('/:id/latest-improvement', async (req, res) => {
   try {
-    const { id } = req.params;  // Get patient id from URL
+    const { id } = req.params;
 
     // Find the latest improvement by sorting week numbers in descending order
-    const latestImprovement = await WeeklyImprovement.findOne({ patientId: id })
-      .sort({ weekNumber: -1 });  // Sort to get the latest improvement
+    const latestImprovement = await WeeklyImprovement.findOne({ patientId: id }).sort({ weekNumber: -1 });
 
     if (!latestImprovement) {
       return res.status(404).json({ message: 'No improvements found for this patient' });
@@ -86,7 +87,7 @@ router.get('/:id/latest-improvement', async (req, res) => {
     res.status(200).json({ improvement: latestImprovement.improvement });
   } catch (error) {
     console.error('Error fetching latest improvement:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    res.status(500).json({ message: 'Internal server error', error: error.message });
   }
 });
 
@@ -101,11 +102,11 @@ router.get('/:id/improvements', async (req, res) => {
     res.status(200).json(improvements);
   } catch (error) {
     console.error('Error fetching improvements:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    res.status(500).json({ message: 'Internal server error', error: error.message });
   }
 });
 
-// Add this to your Express routes file
+// GET route to fetch health data count (malnourished and obese children)
 router.get('/health-data/count', async (req, res) => {
   try {
     // Count malnourished and obese children based on the 'nutritionStatus' field
@@ -113,6 +114,36 @@ router.get('/health-data/count', async (req, res) => {
     const obeseCount = await PatientRecord.countDocuments({ nutritionStatus: 'Obese' });
 
     res.status(200).json({ malnourished: malnourishedCount, obese: obeseCount });
+  } catch (error) {
+    console.error('Error fetching health data:', error);
+    res.status(500).json({ message: 'Error fetching health data', error: error.message });
+  }
+});
+
+
+// Route to fetch health data including malnourished and obese children with improvements
+router.get('/health-data', async (req, res) => {
+  try {
+    // Fetch patients with 'Malnourished' or 'Obese' status
+    const patients = await PatientRecord.find({ 
+      nutritionStatus: { $in: ['Malnourished', 'Obese'] } 
+    }).lean();  // Use .lean() for better performance if no modifications are required
+
+    // For each patient, fetch their weekly improvements
+    const patientDataWithImprovements = await Promise.all(
+      patients.map(async (patient) => {
+        const improvements = await WeeklyImprovement.find({ patientId: patient._id }).sort({ weekNumber: 1 });
+        return {
+          ...patient,
+          weeklyImprovements: improvements.map(improvement => ({
+            weekNumber: improvement.weekNumber,
+            improvement: improvement.improvement,
+          })),
+        };
+      })
+    );
+
+    res.status(200).json(patientDataWithImprovements);
   } catch (error) {
     console.error('Error fetching health data:', error);
     res.status(500).json({ message: 'Error fetching health data' });

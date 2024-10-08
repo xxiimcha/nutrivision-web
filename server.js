@@ -64,6 +64,7 @@ const userRoutes = require('./routes/users');
 const messageRoutes = require('./routes/messages');
 const notificationsRouter = require('./routes/notifications');
 const logsRoutes = require('./routes/logs');
+const callRoutes = require('./routes/calls');
 
 // Mount routes
 app.use('/api/logs', logsRoutes);
@@ -75,6 +76,7 @@ app.use('/api/meal-plans', mealPlanRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/notifications', notificationsRouter);
+app.use('/api/calls', callRoutes);
 
 // Serve static assets in production
 if (process.env.NODE_ENV === 'production') {

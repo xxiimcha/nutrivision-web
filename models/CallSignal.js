@@ -15,7 +15,25 @@ const CallSignalSchema = new Schema({
     enum: ['audio', 'video'], // Call type can be either 'audio' or 'video'
     required: true 
   },
-  timestamp: { type: Date, default: Date.now }
+  roomLink: { 
+    type: String, 
+    required: true // Room link for the call (video/audio session)
+  },
+  callDuration: { 
+    type: Number, 
+    default: 0 // Duration of the call in seconds
+  },
+  startedAt: { 
+    type: Date, 
+    default: Date.now // When the call started
+  },
+  endedAt: { 
+    type: Date // When the call ended
+  },
+  timestamp: { 
+    type: Date, 
+    default: Date.now // When the record was created
+  }
 });
 
 module.exports = mongoose.model('CallSignal', CallSignalSchema);
