@@ -133,36 +133,40 @@ const Telemed = () => {
                 sx={{ mb: 2 }}
               />
               <List sx={{ maxHeight: '60vh', overflowY: 'auto' }}>
-                {filteredUsers.map((user) => (
-                  <ListItem
-                    button
-                    key={user._id}
-                    onClick={() => handleUserClick(user)}
-                    selected={selectedUser?._id === user._id}
-                    sx={{
-                      borderRadius: 2,
-                      mb: 1,
-                      bgcolor: selectedUser?._id === user._id ? 'primary.light' : 'background.paper',
-                      '&:hover': {
-                        bgcolor: 'primary.light',
-                      },
-                    }}
-                  >
-                    <Avatar>{user.firstName[0]}</Avatar>
-                    <ListItemText
-                      primary={`${user.firstName} ${user.lastName}`}
-                      secondary={userStatus[user._id] === 'online' ? 'Online' : 'Offline'}
-                      sx={{ ml: 2 }}
-                    />
-                    <Box sx={{ ml: 1 }}>
-                      {userStatus[user._id] === 'online' ? (
-                        <Typography color="green">● Online</Typography>
-                      ) : (
-                        <Typography color="red">● Offline</Typography>
-                      )}
-                    </Box>
-                  </ListItem>
-                ))}
+                {Array.isArray(filteredUsers) && filteredUsers.length > 0 ? (
+                    filteredUsers.map((user) => (
+                      <ListItem
+                        button
+                        key={user._id}
+                        onClick={() => handleUserClick(user)}
+                        selected={selectedUser?._id === user._id}
+                        sx={{
+                          borderRadius: 2,
+                          mb: 1,
+                          bgcolor: selectedUser?._id === user._id ? 'primary.light' : 'background.paper',
+                          '&:hover': {
+                            bgcolor: 'primary.light',
+                          },
+                        }}
+                      >
+                        <Avatar>{user.firstName ? user.firstName[0] : 'N/A'}</Avatar>
+                        <ListItemText
+                          primary={`${user.firstName || 'N/A'} ${user.lastName || ''}`}
+                          secondary={userStatus[user._id] === 'online' ? 'Online' : 'Offline'}
+                          sx={{ ml: 2 }}
+                        />
+                        <Box sx={{ ml: 1 }}>
+                          {userStatus[user._id] === 'online' ? (
+                            <Typography color="green">●</Typography>
+                          ) : (
+                            <Typography color="red">●</Typography>
+                          )}
+                        </Box>
+                      </ListItem>
+                    ))
+                  ) : (
+                    <Typography variant="body2" color="textSecondary">No users found.</Typography>
+                  )}
               </List>
             </CardContent>
           </Card>
@@ -181,9 +185,11 @@ const Telemed = () => {
                   borderBottom: '1px solid #ccc',
                 }}
               >
-                <Typography variant="h6">
-                  Conversation with {selectedUser.firstName} {selectedUser.lastName}
-                </Typography>
+                {selectedUser && (
+                  <Typography variant="h6">
+                    Conversation with {selectedUser.firstName} {selectedUser.lastName}
+                  </Typography>
+                )}
                 <Box>
                   <IconButton
                     onClick={() => initiateCall(selectedUser._id, 'video', userId)}
@@ -205,82 +211,85 @@ const Telemed = () => {
                   boxShadow: 2,
                 }}
               >
-                {messages.map((message, index) => {
-                const messageDate = new Date(message.timestamp);
-                let hours = messageDate.getUTCHours(); // Get the UTC hours
-                let minutes = messageDate.getUTCMinutes(); // Get the UTC minutes
-                hours = (hours + 8) % 24;
-                const ampm = hours >= 12 ? 'PM' : 'AM';
-                hours = hours % 12;
-                hours = hours ? hours : 12; // Convert hour '0' to '12'
+                {messages && messages.length > 0 ? (
+                  messages.map((message, index) => {
+                    const messageDate = new Date(message.timestamp);
+                    let hours = messageDate.getUTCHours(); // Get the UTC hours
+                    let minutes = messageDate.getUTCMinutes(); // Get the UTC minutes
+                    hours = (hours + 8) % 24;
+                    const ampm = hours >= 12 ? 'PM' : 'AM';
+                    hours = hours % 12;
+                    hours = hours ? hours : 12; // Convert hour '0' to '12'
 
-                // Format the time string
-                const formattedTime = `${hours}:${minutes < 10 ? '0' : ''}${minutes} ${ampm}`;
+                    // Format the time string
+                    const formattedTime = `${hours}:${minutes < 10 ? '0' : ''}${minutes} ${ampm}`;
 
-                // Format the date part
-                const formattedDate = messageDate.toLocaleDateString('en-US', {
-                  weekday: 'long',
-                  year: 'numeric',
-                  month: 'short',
-                  day: 'numeric',
-                });
-
-                // Get the previous message's date (if exists)
-                const previousMessage = messages[index - 1];
-                const previousMessageDate = previousMessage
-                  ? new Date(previousMessage.timestamp)
-                  : null;
-                const formattedPreviousDate = previousMessageDate
-                  ? previousMessageDate.toLocaleDateString('en-US', {
+                    // Format the date part
+                    const formattedDate = messageDate.toLocaleDateString('en-US', {
                       weekday: 'long',
                       year: 'numeric',
                       month: 'short',
                       day: 'numeric',
-                    })
-                  : null;
+                    });
 
-                // Only show the date divider if the date is different from the previous message's date
-                const showDateDivider = !previousMessage || formattedDate !== formattedPreviousDate;
+                    // Get the previous message's date (if exists)
+                    const previousMessage = messages[index - 1];
+                    const previousMessageDate = previousMessage
+                      ? new Date(previousMessage.timestamp)
+                      : null;
+                    const formattedPreviousDate = previousMessageDate
+                      ? previousMessageDate.toLocaleDateString('en-US', {
+                          weekday: 'long',
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
+                        })
+                      : null;
 
-                return (
-                  <React.Fragment key={index}>
-                    {/* Date Divider */}
-                    {showDateDivider && (
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          textAlign: 'center',
-                          margin: '10px 0',
-                          fontWeight: 'bold',
-                          color: 'grey',
-                        }}
-                      >
-                        {formattedDate}
-                      </Typography>
-                    )}
+                    // Only show the date divider if the date is different from the previous message's date
+                    const showDateDivider = !previousMessage || formattedDate !== formattedPreviousDate;
 
-                    {/* Message */}
-                    <ListItem sx={{ justifyContent: message.sender === userId ? 'flex-end' : 'flex-start' }}>
-                      <Paper
-                        elevation={2}
-                        sx={{
-                          padding: 1.5,
-                          bgcolor: message.sender === userId ? 'primary.main' : 'grey.300',
-                          color: message.sender === userId ? 'primary.contrastText' : 'text.primary',
-                          borderRadius: 2,
-                          maxWidth: '60%',
-                        }}
-                      >
-                        <Typography variant="body2">{message.text}</Typography>
-                        <Typography variant="caption" sx={{ textAlign: 'right', display: 'block', mt: 1 }}>
-                          {formattedTime}
-                        </Typography>
-                      </Paper>
-                    </ListItem>
-                  </React.Fragment>
-                );
-              })}
+                    return (
+                      <React.Fragment key={index}>
+                        {/* Date Divider */}
+                        {showDateDivider && (
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              textAlign: 'center',
+                              margin: '10px 0',
+                              fontWeight: 'bold',
+                              color: 'grey',
+                            }}
+                          >
+                            {formattedDate}
+                          </Typography>
+                        )}
 
+                        {/* Message */}
+                        <ListItem sx={{ justifyContent: message.sender === userId ? 'flex-end' : 'flex-start' }}>
+                          <Paper
+                            elevation={2}
+                            sx={{
+                              padding: 1.5,
+                              bgcolor: message.sender === userId ? 'primary.main' : 'grey.300',
+                              color: message.sender === userId ? 'primary.contrastText' : 'text.primary',
+                              borderRadius: 2,
+                              maxWidth: '60%',
+                            }}
+                          >
+                            <Typography variant="body2">{message.text}</Typography>
+                            <Typography variant="caption" sx={{ textAlign: 'right', display: 'block', mt: 1 }}>
+                              {formattedTime}
+                            </Typography>
+                          </Paper>
+                        </ListItem>
+                      </React.Fragment>
+                    );
+                  })
+                ) : (
+                  <Typography variant="body2" color="textSecondary">No messages yet.</Typography>
+                )}
                 <div ref={messagesEndRef} />
               </List>
 

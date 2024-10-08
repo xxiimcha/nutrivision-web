@@ -17,7 +17,7 @@ const PORT = process.env.PORT || 5003;
 // Middleware
 app.use(bodyParser.json());
 app.use(cors({
-  origin: 'http://localhost:3000', // Ensure your front-end domain is allowed
+  origin: ['http://localhost:3000', 'https://nutrivision-frontend.onrender.com'], // Ensure your front-end domain is allowed
   methods: ['GET', 'POST', 'PUT', 'DELETE'], 
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));

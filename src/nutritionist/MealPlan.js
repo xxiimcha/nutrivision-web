@@ -30,19 +30,22 @@ import axios from 'axios';
 import moment from 'moment';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+
 const MealPlan = () => {
-  const { id, week } = useParams(); 
+  const { id, week } = useParams();
   const [mealPlan, setMealPlan] = useState({});
   const [patientInfo, setPatientInfo] = useState({ patientName: 'N/A', height: 'N/A', weight: 'N/A' });
-  const [open, setOpen] = useState(false); 
-  const [previewOpen, setPreviewOpen] = useState(false); // State for preview modal
+  const [open, setOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false); 
+  const [photoOpen, setPhotoOpen] = useState(false); // State for photo modal
+  const [selectedPhoto, setSelectedPhoto] = useState(null); // Store the selected meal photo
   const [selectedDay, setSelectedDay] = useState('');
   const [selectedMealType, setSelectedMealType] = useState('');
   const [mealDetails, setMealDetails] = useState({ mainDish: '', drinks: '', vitamins: '', ingredients: '' });
-  const [isConfirmed, setIsConfirmed] = useState(false); // To track confirmation before saving
+  const [isConfirmed, setIsConfirmed] = useState(false); 
   const navigate = useNavigate();
 
-  const startOfWeek = moment(week).startOf('isoWeek').format('YYYY-MM-DD'); // ISO week starts from Monday
+  const startOfWeek = moment(week).startOf('isoWeek').format('YYYY-MM-DD');
   const endOfWeek = moment(week).endOf('isoWeek').format('YYYY-MM-DD');
 
   useEffect(() => {
@@ -102,7 +105,7 @@ const MealPlan = () => {
       console.error('Error sending meal plan or creating notification:', error);
     }
   };
-  
+
   const handleOpenModal = (day, mealType) => {
     setSelectedDay(day);
     setSelectedMealType(mealType);
@@ -116,8 +119,8 @@ const MealPlan = () => {
   };
 
   const handlePreview = () => {
-    setOpen(false); 
-    setPreviewOpen(true); // Open the preview modal
+    setOpen(false);
+    setPreviewOpen(true);
   };
 
   const handleClosePreview = () => {
@@ -138,7 +141,7 @@ const MealPlan = () => {
         breakfast: {},
         lunch: {},
         dinner: {},
-        status: '', 
+        status: '',
       };
     }
 
@@ -172,6 +175,17 @@ const MealPlan = () => {
     return ['breakfast', 'lunch', 'dinner'].every(
       (mealType) => mealPlan[day]?.[mealType]?.approved
     );
+  };
+
+  // Open photo modal
+  const handleOpenPhotoModal = (photo) => {
+    setSelectedPhoto(photo);
+    setPhotoOpen(true);
+  };
+
+  // Close photo modal
+  const handleClosePhotoModal = () => {
+    setPhotoOpen(false);
   };
 
   return (
@@ -241,6 +255,16 @@ const MealPlan = () => {
                     <Typography variant="body2">
                       <strong>Ingredients:</strong> {Array.isArray(mealPlan[day]?.[mealType]?.ingredients) ? mealPlan[day]?.[mealType]?.ingredients.join(', ') : 'No ingredients listed'}
                     </Typography>
+
+                    {mealPlan[day]?.[mealType]?.photo && (
+                      <Button
+                        variant="contained"
+                        sx={{ mt: 1, backgroundColor: '#1565C0' }}
+                        onClick={() => handleOpenPhotoModal(mealPlan[day][mealType].photo)}
+                      >
+                        View Proof of Meal
+                      </Button>
+                    )}
 
                     {mealPlan[day]?.[mealType]?.approved ? (
                       <IconButton sx={{ mt: 1, color: '#1565C0' }}>
@@ -325,7 +349,6 @@ const MealPlan = () => {
             fullWidth
             sx={{ mb: 2 }}
           />
-          {/* TextArea for ingredients */}
           <TextField
             label="Ingredients"
             value={mealDetails.ingredients}
@@ -346,7 +369,7 @@ const MealPlan = () => {
         </Box>
       </Modal>
 
-      {/* Confirmation/Preview Modal */}
+      {/* Preview/Confirmation Modal */}
       <Dialog open={previewOpen} onClose={handleClosePreview}>
         <DialogTitle>Preview Meal Plan</DialogTitle>
         <DialogContent>
@@ -366,6 +389,29 @@ const MealPlan = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Modal for viewing the proof of meal photo */}
+      <Modal open={photoOpen} onClose={handleClosePhotoModal}>
+        <Box
+          sx={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: 500,
+            bgcolor: 'background.paper',
+            border: '2px solid #000',
+            boxShadow: 24,
+            p: 4,
+            borderRadius: 2,
+          }}
+        >
+          {selectedPhoto && <img src={selectedPhoto} alt="Proof of Meal" style={{ width: '100%' }} />}
+          <Button onClick={handleClosePhotoModal} variant="contained" color="primary" sx={{ mt: 2 }}>
+            Close
+          </Button>
+        </Box>
+      </Modal>
     </Container>
   );
 };

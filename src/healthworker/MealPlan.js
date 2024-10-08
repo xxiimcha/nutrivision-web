@@ -9,6 +9,7 @@ import {
   Accordion,
   AccordionSummary,
   AccordionDetails,
+  Modal,
 } from '@mui/material';
 import { ExpandMore, CheckCircle, ArrowBackIos, ArrowForwardIos } from '@mui/icons-material';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -18,9 +19,11 @@ import moment from 'moment';
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
 const MealPlan = () => {
-  const { id, week } = useParams(); 
+  const { id, week } = useParams();
   const [mealPlan, setMealPlan] = useState({});
   const [patientInfo, setPatientInfo] = useState({ patientName: 'N/A', height: 'N/A', weight: 'N/A' });
+  const [openModal, setOpenModal] = useState(false); // Modal state for the proof of meal photo
+  const [selectedPhoto, setSelectedPhoto] = useState(null); // State to store the selected photo
   const navigate = useNavigate();
 
   const startOfWeek = moment(week).startOf('week').format('YYYY-MM-DD');
@@ -54,6 +57,16 @@ const MealPlan = () => {
       newWeek = newWeek.subtract(1, 'week');
     }
     navigate(`/dashboard/meal-plan/${id}/${newWeek.format('YYYY-MM-DD')}`);
+  };
+
+  const handleOpenModal = (photo) => {
+    setSelectedPhoto(photo);
+    setOpenModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setOpenModal(false);
+    setSelectedPhoto(null);
   };
 
   return (
@@ -107,10 +120,9 @@ const MealPlan = () => {
               </AccordionSummary>
               <AccordionDetails>
                 {
-                  // Check if there are any approved meals for the day
                   ['breakfast', 'lunch', 'dinner'].some(mealType => mealPlan[day]?.[mealType]?.approved) ? (
                     ['breakfast', 'lunch', 'dinner'].map((mealType) => (
-                      mealPlan[day]?.[mealType]?.approved && ( // Only display approved meals
+                      mealPlan[day]?.[mealType]?.approved && (
                         <Box key={mealType} mb={3} sx={{ backgroundColor: '#E3F2FD', padding: 2, borderRadius: 2 }}>
                           <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: '#1565C0' }}>
                             {mealType.charAt(0).toUpperCase() + mealType.slice(1)}
@@ -127,6 +139,16 @@ const MealPlan = () => {
                           <Typography variant="body2">
                             <strong>Ingredients:</strong> {Array.isArray(mealPlan[day]?.[mealType]?.ingredients) ? mealPlan[day]?.[mealType]?.ingredients.join(', ') : 'No ingredients listed'}
                           </Typography>
+
+                          {mealPlan[day]?.[mealType]?.photo && (
+                            <Button
+                              variant="contained"
+                              sx={{ mt: 1, backgroundColor: '#1565C0' }}
+                              onClick={() => handleOpenModal(mealPlan[day][mealType].photo)}
+                            >
+                              View Proof of Meal
+                            </Button>
+                          )}
 
                           <IconButton sx={{ mt: 1, color: '#1565C0' }}>
                             <CheckCircle />
@@ -145,6 +167,29 @@ const MealPlan = () => {
           </Grid>
         ))}
       </Grid>
+
+      {/* Modal for viewing the proof of meal photo */}
+      <Modal open={openModal} onClose={handleCloseModal}>
+        <Box
+          sx={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: 500,
+            bgcolor: 'background.paper',
+            border: '2px solid #000',
+            boxShadow: 24,
+            p: 4,
+            borderRadius: 2,
+          }}
+        >
+          {selectedPhoto && <img src={selectedPhoto} alt="Proof of Meal" style={{ width: '100%' }} />}
+          <Button onClick={handleCloseModal} variant="contained" color="primary" sx={{ mt: 2 }}>
+            Close
+          </Button>
+        </Box>
+      </Modal>
     </Container>
   );
 };
