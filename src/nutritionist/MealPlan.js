@@ -1,0 +1,376 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Box,
+  Container,
+  Typography,
+  Button,
+  Paper,
+  Modal,
+  TextField,
+  Grid,
+  IconButton,
+  Breadcrumbs,
+  Link,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+} from '@mui/material';
+import {ArrowBackIos, ArrowForwardIos} from '@mui/icons-material';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
+
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+
+import axios from 'axios';
+import moment from 'moment';
+
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+
+const MealPlan = () => {
+  const { id, week } = useParams();
+  const [mealPlan, setMealPlan] = useState({});
+  const [patientInfo, setPatientInfo] = useState({ patientName: 'N/A', height: 'N/A', weight: 'N/A' });
+  const [open, setOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false); 
+  const [photoOpen, setPhotoOpen] = useState(false); // State for photo modal
+  const [selectedPhoto, setSelectedPhoto] = useState(null); // Store the selected meal photo
+  const [selectedDay, setSelectedDay] = useState('');
+  const [selectedMealType, setSelectedMealType] = useState('');
+  const [mealDetails, setMealDetails] = useState({ mainDish: '', drinks: '', vitamins: '', ingredients: '' });
+  const [isConfirmed, setIsConfirmed] = useState(false); 
+  const navigate = useNavigate();
+  const location = useLocation(); // Get the current location
+
+  const startOfWeek = moment(week).startOf('isoWeek').format('YYYY-MM-DD');
+  const endOfWeek = moment(week).endOf('isoWeek').format('YYYY-MM-DD');
+
+
+  const currentDate = moment().format('YYYY-MM-DD'); // Get current date in the same format
+
+  // Check if the current date is between startOfWeek and endOfWeek (inclusive)
+  const isCurrentWeek = moment(currentDate).isBetween(startOfWeek, endOfWeek, null, '[]'); // [] makes it inclusive
+
+  useEffect(() => {
+    const fetchMealPlanAndPatientInfo = async () => {
+      try {
+        if (id && week) {
+          const [mealPlanResponse, patientResponse] = await Promise.all([
+            axios.get(`${API_BASE_URL}/meal-plans/${id}/${week}`),
+            axios.get(`${API_BASE_URL}/patient-records/${id}`),
+          ]);
+
+          setMealPlan(mealPlanResponse.data);
+          setPatientInfo(patientResponse.data);
+        }
+      } catch (error) {
+        console.error('Error fetching meal plan or patient information:', error);
+      }
+    };
+
+    fetchMealPlanAndPatientInfo();
+  }, [id, week]);
+
+  const handleWeekChange = (direction) => {
+    let newWeek = moment(week);
+    if (direction === 'next') {
+      newWeek = newWeek.add(1, 'week');
+    } else {
+      newWeek = newWeek.subtract(1, 'week');
+    }
+    navigate(`/dashboard/meal-plan/${id}/${newWeek.format('YYYY-MM-DD')}`);
+  };
+
+  const handleSendMealPlan = async (day) => {
+    try {
+      const updatedMealPlan = { ...mealPlan };
+      updatedMealPlan[day].status = 'sent'; 
+    
+      await axios.post(`${API_BASE_URL}/meal-plans/${id}/${week}`, updatedMealPlan);
+      setMealPlan(updatedMealPlan);
+    
+      const patientResponse = await axios.get(`${API_BASE_URL}/patient-records/${id}`);
+      const userId = patientResponse.data.userId; 
+    
+      const notification = {
+        userId: userId,
+        title: `Meal Plan for ${patientInfo.patientName}`,
+        message: `The meal plan for ${day}, week of ${week}, has been sent.`,
+        reserved_time: new Date().toISOString(),
+        post_id: null,
+        updated_at: new Date().toISOString(),
+      };
+    
+      await axios.post(`${API_BASE_URL}/notifications`, notification);
+    
+      console.log('Meal plan sent and notification created successfully.');
+    } catch (error) {
+      console.error('Error sending meal plan or creating notification:', error);
+    }
+  };
+
+  const handleOpenModal = (day, mealType) => {
+    setSelectedDay(day);
+    setSelectedMealType(mealType);
+    setMealDetails(mealPlan[day]?.[mealType] || { mainDish: '', drinks: '', vitamins: '', ingredients: '' });
+    setOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setOpen(false);
+    setMealDetails({ mainDish: '', drinks: '', vitamins: '', ingredients: '' });
+  };
+
+  const handlePreview = () => {
+    setOpen(false);
+    setPreviewOpen(true);
+  };
+
+  const handleClosePreview = () => {
+    setPreviewOpen(false);
+  };
+
+  const handleConfirmSave = () => {
+    setIsConfirmed(true);
+    setPreviewOpen(false);
+    handleSaveMeal();
+  };
+
+  const handleSaveMeal = async () => {
+    const updatedMealPlan = { ...mealPlan };
+
+    if (!updatedMealPlan[selectedDay]) {
+      updatedMealPlan[selectedDay] = {
+        breakfast: {},
+        lunch: {},
+        dinner: {},
+        status: '',
+      };
+    }
+
+    updatedMealPlan[selectedDay][selectedMealType] = mealDetails;
+
+    try {
+      await axios.post(`${API_BASE_URL}/meal-plans/${id}/${week}`, updatedMealPlan);
+      setMealPlan(updatedMealPlan);
+      handleCloseModal();
+    } catch (error) {
+      console.error('Error saving meal:', error);
+    }
+  };
+
+  const handleApproveMeal = async (day, mealType) => {
+    const updatedMealPlan = { ...mealPlan };
+
+    if (updatedMealPlan[day] && updatedMealPlan[day][mealType]) {
+      updatedMealPlan[day][mealType].approved = true;
+    }
+
+    try {
+      await axios.post(`${API_BASE_URL}/meal-plans/${id}/${week}`, updatedMealPlan);
+      setMealPlan(updatedMealPlan);
+    } catch (error) {
+      console.error('Error approving meal:', error);
+    }
+  };
+
+  const allMealsApproved = (day) => {
+    return ['breakfast', 'lunch', 'dinner'].every(
+      (mealType) => mealPlan[day]?.[mealType]?.approved
+    );
+  };
+
+  // Open photo modal
+  const handleOpenPhotoModal = (photo) => {
+    setSelectedPhoto(photo);
+    setPhotoOpen(true);
+  };
+
+  // Close photo modal
+  const handleClosePhotoModal = () => {
+    setPhotoOpen(false);
+  };
+
+  const handleDayClick = (day) => {
+    // Append the day to the current path
+    navigate(`${location.pathname}/${day}`);
+  };
+
+  return (
+    <Container>
+
+<Box mb={2}>
+        <Breadcrumbs aria-label="breadcrumb">
+        <IconButton onClick={() => navigate(-1)} >
+            <ArrowBackIcon />
+          </IconButton>
+          <Link color="inherit" sx={{cursor: 'pointer'}} onClick={() => navigate('/dashboard/food-management')}>
+            Food Management
+          </Link>
+          <Typography color="text.primary">Meal Plan</Typography>
+        
+        </Breadcrumbs>
+      </Box>
+
+      <Typography variant="h4" gutterBottom sx={{ color: '#1565C0', fontWeight: 'bold' }}>
+        Meal Plan
+      </Typography>
+      <Box mb={4}>
+        <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#1565C0' }}>
+          Child's Name: {patientInfo.name}
+        </Typography>
+        <Typography variant="subtitle1">
+          Height: {patientInfo.height} cm, Weight: {patientInfo.weight} kg
+        </Typography>
+        <Typography variant="subtitle1" sx={{ color: '#1565C0' }}>
+          Week: {startOfWeek} to {endOfWeek}
+        </Typography>
+        {isCurrentWeek && (
+          <Typography
+            variant="subtitle1"
+            sx={{ color: '#fff', bgcolor: 'rgba(78, 204, 11, 0.7)', px: 1, textAlign: 'center', width: '12%' }}
+          >
+            Current Week
+          </Typography>
+        )}
+      </Box>
+
+      <Box display="flex" justifyContent="space-between" mb={4}>
+        <Button
+          variant="contained"
+          startIcon={<ArrowBackIos />}
+          onClick={() => handleWeekChange('previous')}
+          sx={{ backgroundColor: '#1565C0' }}
+        >
+          Previous Week
+        </Button>
+        <Button
+          variant="contained"
+          endIcon={<ArrowForwardIos />}
+          onClick={() => handleWeekChange('next')}
+          sx={{ backgroundColor: '#1E88E5' }}
+        >
+          Next Week
+        </Button>
+      </Box>
+
+      <Grid container spacing={3}>
+      {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => (
+        <Grid item xs={3} key={day}>
+          <Paper
+            elevation={3}
+            sx={{ background: '#D9E5F7', width: '100%', height: '150px', p: 1, cursor: 'pointer' }}
+            onClick={() => handleDayClick(day)}
+          >
+            <Typography sx={{ fontWeight: 'bold' }}>{day}</Typography>
+          </Paper>
+        </Grid>
+      ))}
+    </Grid>
+
+      {/* Modal for editing meal details */}
+      <Modal open={open} onClose={handleCloseModal}>
+        <Box
+          sx={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: 400,
+            bgcolor: 'background.paper',
+            border: '2px solid #1565C0',
+            boxShadow: 24,
+            p: 4,
+          }}
+        >
+          <Typography variant="h6" gutterBottom>
+            {selectedMealType.charAt(0).toUpperCase() + selectedMealType.slice(1)} for {selectedDay}
+          </Typography>
+          <TextField
+            label="Main Dish"
+            value={mealDetails.mainDish}
+            onChange={(e) => setMealDetails({ ...mealDetails, mainDish: e.target.value })}
+            fullWidth
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            label="Drinks"
+            value={mealDetails.drinks}
+            onChange={(e) => setMealDetails({ ...mealDetails, drinks: e.target.value })}
+            fullWidth
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            label="Vitamins"
+            value={mealDetails.vitamins}
+            onChange={(e) => setMealDetails({ ...mealDetails, vitamins: e.target.value })}
+            fullWidth
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            label="Ingredients"
+            value={mealDetails.ingredients}
+            onChange={(e) => setMealDetails({ ...mealDetails, ingredients: e.target.value })}
+            fullWidth
+            multiline
+            rows={4}
+            sx={{ mb: 2 }}
+          />
+          <Box display="flex" justifyContent="space-between" mt={2}>
+            <Button variant="contained" sx={{ backgroundColor: '#1565C0' }} onClick={handlePreview}>
+              Preview
+            </Button>
+            <Button variant="contained" color="secondary" onClick={handleCloseModal}>
+              Cancel
+            </Button>
+          </Box>
+        </Box>
+      </Modal>
+
+      {/* Preview/Confirmation Modal */}
+      <Dialog open={previewOpen} onClose={handleClosePreview}>
+        <DialogTitle>Preview Meal Plan</DialogTitle>
+        <DialogContent>
+          <Typography variant="body1"><strong>Day:</strong> {selectedDay}</Typography>
+          <Typography variant="body1"><strong>Meal Type:</strong> {selectedMealType}</Typography>
+          <Typography variant="body1"><strong>Main Dish:</strong> {mealDetails.mainDish}</Typography>
+          <Typography variant="body1"><strong>Drinks:</strong> {mealDetails.drinks}</Typography>
+          <Typography variant="body1"><strong>Vitamins:</strong> {mealDetails.vitamins}</Typography>
+          <Typography variant="body1"><strong>Ingredients:</strong> {mealDetails.ingredients}</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button variant="contained" sx={{ backgroundColor: '#1565C0' }} onClick={handleConfirmSave}>
+            Confirm Save
+          </Button>
+          <Button variant="contained" color="secondary" onClick={handleClosePreview}>
+            Cancel
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Modal for viewing the proof of meal photo */}
+      <Modal open={photoOpen} onClose={handleClosePhotoModal}>
+        <Box
+          sx={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: 500,
+            bgcolor: 'background.paper',
+            border: '2px solid #000',
+            boxShadow: 24,
+            p: 4,
+            borderRadius: 2,
+          }}
+        >
+          {selectedPhoto && <img src={selectedPhoto} alt="Proof of Meal" style={{ width: '100%' }} />}
+          <Button onClick={handleClosePhotoModal} variant="contained" color="primary" sx={{ mt: 2 }}>
+            Close
+          </Button>
+        </Box>
+      </Modal>
+    </Container>
+  );
+};
+
+export default MealPlan;
