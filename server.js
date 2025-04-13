@@ -13,7 +13,7 @@ const logAction = require('./utils/logAction');
 
 const app = express();
 const PORT = process.env.PORT || 5003;
-const allowedOrigins =  ['http://localhost:3000', 'https://nutrivision-frontend.onrender.com','https://nutrivision-cembo.site']
+const allowedOrigins =  ['http://localhost:3000', 'https://nutrivision-frontend.onrender.com','https://nutrivision-cembo.site', 'https://nutrivision-web-blue.vercel.app']
 // Middleware
 app.use(bodyParser.json());
 app.use(cors({
