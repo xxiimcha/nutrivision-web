@@ -4,8 +4,11 @@ const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 const http = require('http');
 const { Server } = require('socket.io');
+
+// Models & Utils
 const CallSignal = require('./models/CallSignal');
 const Notification = require('./models/Notification');
 const Admin = require('./models/Admin');
@@ -13,16 +16,20 @@ const logAction = require('./utils/logAction');
 
 const app = express();
 const PORT = process.env.PORT || 5003;
-const allowedOrigins =  ['http://localhost:3000', 'https://nutrivision-frontend.onrender.com','https://nutrivision-cembo.site', 'https://nutrivision-web-blue.vercel.app']
+
+// Dynamic allowed origin from env
+const allowedOrigins = [process.env.FRONTEND_URL || 'http://localhost:3000'];
+console.log('Allowed CORS Origins:', allowedOrigins);
+
 // Middleware
 app.use(bodyParser.json());
 app.use(cors({
-  origin: allowedOrigins, // Ensure your front-end domain is allowed
-  methods: ['GET', 'POST', 'PUT', 'DELETE'], 
+  origin: allowedOrigins,
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
-// MongoDB connection using environment variables
+// MongoDB connection
 const mongoUri = process.env.MONGO_URI || 'fallback-mongo-uri';
 mongoose.connect(mongoUri, {
   useNewUrlParser: true,
@@ -31,7 +38,7 @@ mongoose.connect(mongoUri, {
   .then(async () => {
     console.log('MongoDB connected successfully.');
 
-    // Check for Super Admin existence
+    // Auto-create Super Admin if not existing
     const superAdminEmail = 'superadmin@gmail.com';
     const superAdmin = await Admin.findOne({ email: superAdminEmail });
     if (!superAdmin) {
@@ -52,6 +59,7 @@ mongoose.connect(mongoUri, {
     console.error('MongoDB connection error:', err);
   });
 
+// Serve uploads
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Routes
@@ -78,22 +86,24 @@ app.use('/api/messages', messageRoutes);
 app.use('/api/notifications', notificationsRouter);
 app.use('/api/calls', callRoutes);
 
-// Serve static assets in production
+// Serve frontend in production
 if (process.env.NODE_ENV === 'production') {
-  app.use(express.static('client/build'));
-  app.get('*', (req, res) => {
-    res.sendFile(path.resolve(__dirname, 'client', 'build', 'index.html'));
-  });
+  const clientBuildPath = path.join(__dirname, 'client', 'build');
+  if (fs.existsSync(clientBuildPath)) {
+    app.use(express.static(clientBuildPath));
+    app.get('*', (req, res) => {
+      res.sendFile(path.join(clientBuildPath, 'index.html'));
+    });
+  }
 }
-
 
 // Create HTTP server
 const server = http.createServer(app);
 
-// Initialize Socket.io with proper CORS
+// Initialize Socket.IO
 const io = new Server(server, {
   cors: {
-    origin: allowedOrigins,  // Your front-end domain
+    origin: allowedOrigins,
     methods: ['GET', 'POST'],
   },
 });
@@ -101,11 +111,10 @@ const io = new Server(server, {
 // Track connected users
 let connectedUsers = {};
 
-// Socket.io handling
+// Socket.IO handling
 io.on('connection', (socket) => {
   console.log(`User connected: ${socket.id}`);
 
-  // Register the user
   socket.on('register-user', (userId) => {
     if (userId) {
       connectedUsers[userId] = socket.id;
@@ -113,19 +122,12 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Handle call initiation
   socket.on('call-user', async ({ callerId, receiverId, callType, roomUrl }) => {
     try {
       const caller = await Admin.findById(callerId).select('firstName lastName');
       if (!caller) return console.error('Caller not found');
 
-      const callSignal = new CallSignal({
-        callerId,
-        receiverId,
-        callType,
-        status: 'calling',
-        roomUrl,
-      });
+      const callSignal = new CallSignal({ callerId, receiverId, callType, status: 'calling', roomUrl });
 
       if (connectedUsers[receiverId]) {
         io.to(connectedUsers[receiverId]).emit('incoming-call', { callerId, callType, roomUrl });
@@ -137,6 +139,7 @@ io.on('connection', (socket) => {
         });
         await missedCallNotification.save();
       }
+
       await callSignal.save();
       await logAction('CALL_INITIATED', callerId, `Call initiated to ${receiverId} (${callType})`);
     } catch (error) {
@@ -155,7 +158,7 @@ io.on('connection', (socket) => {
   });
 });
 
-// Start server
+// Start the server
 server.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
 });
