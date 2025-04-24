@@ -7,6 +7,13 @@ const path = require('path');
 const fs = require('fs');
 const http = require('http');
 const { Server } = require('socket.io');
+const admin = require('firebase-admin'); // NEW: Firebase Admin SDK
+
+// Firebase Admin Initialization
+const serviceAccount = require('./fcm-service-account.json'); // Your service account file
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+});
 
 // Models & Utils
 const CallSignal = require('./models/CallSignal');
@@ -16,12 +23,8 @@ const logAction = require('./utils/logAction');
 
 const app = express();
 const PORT = process.env.PORT || 5003;
-
-// Dynamic allowed origin from env
 const allowedOrigins = [process.env.FRONTEND_URL || 'http://localhost:3000'];
-console.log('Allowed CORS Origins:', allowedOrigins);
 
-// Middleware
 app.use(bodyParser.json());
 app.use(cors({
   origin: allowedOrigins,
@@ -34,57 +37,42 @@ const mongoUri = process.env.MONGO_URI || 'fallback-mongo-uri';
 mongoose.connect(mongoUri, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
-})
-  .then(async () => {
-    console.log('MongoDB connected successfully.');
+}).then(async () => {
+  console.log('MongoDB connected successfully.');
 
-    // Auto-create Super Admin if not existing
-    const superAdminEmail = 'superadmin@gmail.com';
-    const superAdmin = await Admin.findOne({ email: superAdminEmail });
-    if (!superAdmin) {
-      const superAdminData = new Admin({
-        firstName: 'Super',
-        lastName: 'Admin',
-        email: superAdminEmail,
-        password: 'SecurePassword123!',
-        role: 'Super Admin',
-      });
-      await superAdminData.save();
-      console.log('Super Admin account created.');
-    } else {
-      console.log('Super Admin already exists.');
-    }
-  })
-  .catch((err) => {
-    console.error('MongoDB connection error:', err);
-  });
+  const superAdminEmail = 'superadmin@gmail.com';
+  const superAdmin = await Admin.findOne({ email: superAdminEmail });
+  if (!superAdmin) {
+    const superAdminData = new Admin({
+      firstName: 'Super',
+      lastName: 'Admin',
+      email: superAdminEmail,
+      password: 'SecurePassword123!',
+      role: 'Super Admin',
+    });
+    await superAdminData.save();
+    console.log('Super Admin account created.');
+  } else {
+    console.log('Super Admin already exists.');
+  }
+}).catch((err) => {
+  console.error('MongoDB connection error:', err);
+});
 
 // Serve uploads
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Routes
-const adminRoutes = require('./routes/admin');
-const loginRoutes = require('./routes/login');
-const eventRoutes = require('./routes/events');
-const patientRecordsRoutes = require('./routes/patientRecords');
-const mealPlanRoutes = require('./routes/mealPlans');
-const userRoutes = require('./routes/users');
-const messageRoutes = require('./routes/messages');
-const notificationsRouter = require('./routes/notifications');
-const logsRoutes = require('./routes/logs');
-const callRoutes = require('./routes/calls');
-
-// Mount routes
-app.use('/api/logs', logsRoutes);
-app.use('/api/admins', adminRoutes);
-app.use('/api/login', loginRoutes);
-app.use('/api/events', eventRoutes);
-app.use('/api/patient-records', patientRecordsRoutes);
-app.use('/api/meal-plans', mealPlanRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/messages', messageRoutes);
-app.use('/api/notifications', notificationsRouter);
-app.use('/api/calls', callRoutes);
+app.use('/api/logs', require('./routes/logs'));
+app.use('/api/admins', require('./routes/admin'));
+app.use('/api/login', require('./routes/login'));
+app.use('/api/events', require('./routes/events'));
+app.use('/api/patient-records', require('./routes/patientRecords'));
+app.use('/api/meal-plans', require('./routes/mealPlans'));
+app.use('/api/users', require('./routes/users'));
+app.use('/api/messages', require('./routes/messages'));
+app.use('/api/notifications', require('./routes/notifications'));
+app.use('/api/calls', require('./routes/calls'));
 
 // Serve frontend in production
 if (process.env.NODE_ENV === 'production') {
@@ -97,10 +85,8 @@ if (process.env.NODE_ENV === 'production') {
   }
 }
 
-// Create HTTP server
+// Socket setup
 const server = http.createServer(app);
-
-// Initialize Socket.IO
 const io = new Server(server, {
   cors: {
     origin: allowedOrigins,
@@ -108,16 +94,19 @@ const io = new Server(server, {
   },
 });
 
-// Track connected users
-let connectedUsers = {};
+let connectedUsers = {}; // userId -> socketId
+let fcmTokens = {};      // userId -> FCM Token
 
-// Socket.IO handling
 io.on('connection', (socket) => {
   console.log(`User connected: ${socket.id}`);
 
-  socket.on('register-user', (userId) => {
+  socket.on('register-user', ({ userId, fcmToken }) => {
     if (userId) {
       connectedUsers[userId] = socket.id;
+      if (fcmToken) {
+        fcmTokens[userId] = fcmToken;
+        console.log(`FCM token registered for ${userId}`);
+      }
       console.log(`User ${userId} registered with socket ID: ${socket.id}`);
     }
   });
@@ -132,6 +121,23 @@ io.on('connection', (socket) => {
       if (connectedUsers[receiverId]) {
         io.to(connectedUsers[receiverId]).emit('incoming-call', { callerId, callType, roomUrl });
       } else {
+        if (fcmTokens[receiverId]) {
+          await admin.messaging().send({
+            token: fcmTokens[receiverId],
+            notification: {
+              title: 'Incoming Call',
+              body: `Call from ${caller.firstName} ${caller.lastName}`,
+            },
+            data: {
+              callerId,
+              callType,
+              roomUrl,
+              type: 'incoming-call',
+            },
+          });
+          console.log(`Push notification sent to ${receiverId}`);
+        }
+
         const missedCallNotification = new Notification({
           userId: receiverId,
           title: 'Missed Call',

@@ -20,9 +20,9 @@ import SearchIcon from '@mui/icons-material/Search';
 import VideocamIcon from '@mui/icons-material/Videocam';
 import axios from 'axios';
 import { UserContext } from '../context/UserContext';
-import { initiateCall } from '../services/DailyAPI';
+import { initiateCall } from '../services/AgoraAPI';
 
-const socket = io(process.env.REACT_APP_API_BASE_URL);
+const socket = io(process.env.REACT_APP_SOCKET_URL);
 
 const Telemed = () => {
   const { userId } = useContext(UserContext);
@@ -33,8 +33,9 @@ const Telemed = () => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [incomingCall, setIncomingCall] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [userStatus, setUserStatus] = useState({}); 
-  const messagesEndRef = useRef(null); // Reference for scrolling to bottom
+  const [userStatus, setUserStatus] = useState({});
+  const messagesEndRef = useRef(null);
+  const remoteContainerRef = useRef(null); // For remote video
 
   useEffect(() => {
     socket.emit('register-user', userId);
@@ -47,15 +48,12 @@ const Telemed = () => {
     };
   }, [userId]);
 
-
-
   useEffect(() => {
     const fetchUsers = async () => {
       try {
         const response = await axios.get(`${process.env.REACT_APP_API_BASE_URL}/users`);
         setUsers(response.data);
         setFilteredUsers(response.data);
-  
         const statusMap = {};
         response.data.forEach(user => {
           statusMap[user._id] = user.status;
@@ -66,8 +64,7 @@ const Telemed = () => {
       }
     };
     fetchUsers();
-  }, []);  
-
+  }, []);
 
   useEffect(() => {
     if (searchQuery.trim()) {
@@ -76,9 +73,10 @@ const Telemed = () => {
       );
       setFilteredUsers(filtered);
     } else {
-      setFilteredUsers(users); // Reset to full user list if search query is empty
+      setFilteredUsers(users);
     }
   }, [searchQuery, users]);
+
   const handleUserClick = async (user) => {
     setSelectedUser(user);
     try {
@@ -107,15 +105,10 @@ const Telemed = () => {
     }
   };
 
-  const scrollToBottom = () => {
+  useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  };
-
-  // Call scrollToBottom every time messages are updated
-  useEffect(() => {
-    scrollToBottom();
   }, [messages]);
 
   const acceptCall = () => {
@@ -139,47 +132,39 @@ const Telemed = () => {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search user..."
-                InputProps={{
-                  startAdornment: <SearchIcon position="start" />,
-                }}
+                InputProps={{ startAdornment: <SearchIcon position="start" /> }}
                 fullWidth
                 sx={{ mb: 2 }}
               />
               <List sx={{ maxHeight: '60vh', overflowY: 'auto' }}>
-                {Array.isArray(filteredUsers) && filteredUsers.length > 0 ? (
-                    filteredUsers.map((user) => (
-                      <ListItem
-                        button
-                        key={user._id}
-                        onClick={() => handleUserClick(user)}
-                        selected={selectedUser?._id === user._id}
-                        sx={{
-                          borderRadius: 2,
-                          mb: 1,
-                          bgcolor: selectedUser?._id === user._id ? 'primary.light' : 'background.paper',
-                          '&:hover': {
-                            bgcolor: 'primary.light',
-                          },
-                        }}
-                      >
-                        <Avatar>{user.firstName ? user.firstName[0] : 'N/A'}</Avatar>
-                        <ListItemText
-                          primary={`${user.firstName || 'N/A'} ${user.lastName || ''}`}
-                          secondary={userStatus[user._id] === 'online' ? 'Online' : 'Offline'}
-                          sx={{ ml: 2 }}
-                        />
-                        <Box sx={{ ml: 1 }}>
-                          {userStatus[user._id] === 'online' ? (
-                            <Typography color="green">●</Typography>
-                          ) : (
-                            <Typography color="red">●</Typography>
-                          )}
-                        </Box>
-                      </ListItem>
-                    ))
-                  ) : (
-                    <Typography variant="body2" color="textSecondary">No users found.</Typography>
-                  )}
+                {filteredUsers.length > 0 ? (
+                  filteredUsers.map((user) => (
+                    <ListItem
+                      button
+                      key={user._id}
+                      onClick={() => handleUserClick(user)}
+                      selected={selectedUser?._id === user._id}
+                      sx={{
+                        borderRadius: 2,
+                        mb: 1,
+                        bgcolor: selectedUser?._id === user._id ? 'primary.light' : 'background.paper',
+                        '&:hover': { bgcolor: 'primary.light' },
+                      }}
+                    >
+                      <Avatar>{user.firstName ? user.firstName[0] : 'N/A'}</Avatar>
+                      <ListItemText
+                        primary={`${user.firstName || 'N/A'} ${user.lastName || ''}`}
+                        secondary={userStatus[user._id] === 'online' ? 'Online' : 'Offline'}
+                        sx={{ ml: 2 }}
+                      />
+                      <Box sx={{ ml: 1 }}>
+                        <Typography color={userStatus[user._id] === 'online' ? 'green' : 'red'}>●</Typography>
+                      </Box>
+                    </ListItem>
+                  ))
+                ) : (
+                  <Typography variant="body2" color="textSecondary">No users found.</Typography>
+                )}
               </List>
             </CardContent>
           </Card>
@@ -188,98 +173,54 @@ const Telemed = () => {
         <Grid item xs={12} md={8}>
           {selectedUser ? (
             <>
-              <Box
-                sx={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  mb: 2,
-                  padding: 2,
-                  borderBottom: '1px solid #ccc',
-                }}
-              >
-                {selectedUser && (
-                  <Typography variant="h6">
-                    Conversation with {selectedUser.firstName} {selectedUser.lastName}
-                  </Typography>
-                )}
-                <Box>
-                  <IconButton
-                    onClick={() => initiateCall(selectedUser._id, 'video', userId)}
-                    disabled={userStatus[selectedUser._id] !== 'online'}
-                  >
-                    <VideocamIcon />
-                  </IconButton>
-                </Box>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, p: 2, borderBottom: '1px solid #ccc' }}>
+                <Typography variant="h6">
+                  Conversation with {selectedUser.firstName} {selectedUser.lastName}
+                </Typography>
+                <IconButton
+                  onClick={() => initiateCall(selectedUser._id, 'video', userId)}
+                  disabled={userStatus[selectedUser._id] !== 'online'}
+                >
+                  <VideocamIcon />
+                </IconButton>
               </Box>
-              
-              <List
-                sx={{
-                  height: '650px', // Fixed height
-                  overflowY: 'auto',
-                  padding: 2,
-                  bgcolor: '#f5f5f5',
-                  borderRadius: 3,
-                  mb: 2,
-                  boxShadow: 2,
-                }}
-              >
-                {messages && messages.length > 0 ? (
+
+              <List sx={{
+                height: '650px',
+                overflowY: 'auto',
+                padding: 2,
+                bgcolor: '#f5f5f5',
+                borderRadius: 3,
+                mb: 2,
+                boxShadow: 2,
+              }}>
+                {messages.length > 0 ? (
                   messages.map((message, index) => {
                     const messageDate = new Date(message.timestamp);
-                    let hours = messageDate.getUTCHours(); // Get the UTC hours
-                    let minutes = messageDate.getUTCMinutes(); // Get the UTC minutes
-                    hours = (hours + 8) % 24;
+                    let hours = (messageDate.getUTCHours() + 8) % 24;
+                    const minutes = messageDate.getUTCMinutes();
                     const ampm = hours >= 12 ? 'PM' : 'AM';
-                    hours = hours % 12;
-                    hours = hours ? hours : 12; // Convert hour '0' to '12'
-
-                    // Format the time string
+                    hours = hours % 12 || 12;
                     const formattedTime = `${hours}:${minutes < 10 ? '0' : ''}${minutes} ${ampm}`;
-
-                    // Format the date part
                     const formattedDate = messageDate.toLocaleDateString('en-US', {
-                      weekday: 'long',
-                      year: 'numeric',
-                      month: 'short',
-                      day: 'numeric',
+                      weekday: 'long', year: 'numeric', month: 'short', day: 'numeric',
                     });
-
-                    // Get the previous message's date (if exists)
-                    const previousMessage = messages[index - 1];
-                    const previousMessageDate = previousMessage
-                      ? new Date(previousMessage.timestamp)
-                      : null;
-                    const formattedPreviousDate = previousMessageDate
-                      ? previousMessageDate.toLocaleDateString('en-US', {
-                          weekday: 'long',
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric',
-                        })
-                      : null;
-
-                    // Only show the date divider if the date is different from the previous message's date
-                    const showDateDivider = !previousMessage || formattedDate !== formattedPreviousDate;
+                    const previous = messages[index - 1];
+                    const prevDate = previous ? new Date(previous.timestamp).toLocaleDateString('en-US', {
+                      weekday: 'long', year: 'numeric', month: 'short', day: 'numeric',
+                    }) : null;
+                    const showDate = !previous || formattedDate !== prevDate;
 
                     return (
                       <React.Fragment key={index}>
-                        {/* Date Divider */}
-                        {showDateDivider && (
+                        {showDate && (
                           <Typography
                             variant="body2"
-                            sx={{
-                              textAlign: 'center',
-                              margin: '10px 0',
-                              fontWeight: 'bold',
-                              color: 'grey',
-                            }}
+                            sx={{ textAlign: 'center', m: '10px 0', fontWeight: 'bold', color: 'grey' }}
                           >
                             {formattedDate}
                           </Typography>
                         )}
-
-                        {/* Message */}
                         <ListItem sx={{ justifyContent: message.sender === userId ? 'flex-end' : 'flex-start' }}>
                           <Paper
                             elevation={2}
@@ -312,19 +253,15 @@ const Telemed = () => {
                   onChange={(e) => setNewMessage(e.target.value)}
                   onKeyPress={(e) => {
                     if (e.key === 'Enter') {
-                      e.preventDefault(); // Prevent the default action of the Enter key
-                      handleSendMessage(); // Trigger the send message function
+                      e.preventDefault();
+                      handleSendMessage();
                     }
                   }}
                   placeholder="Type a message..."
                   fullWidth
                   sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3 } }}
                 />
-                <Button
-                  onClick={handleSendMessage}
-                  variant="contained"
-                  sx={{ borderRadius: 3 }}
-                >
+                <Button onClick={handleSendMessage} variant="contained" sx={{ borderRadius: 3 }}>
                   Send
                 </Button>
               </Box>
@@ -336,6 +273,12 @@ const Telemed = () => {
           )}
         </Grid>
       </Grid>
+
+      {/* Agora Video Containers */}
+      <Box display="flex" mt={4} gap={3}>
+        <div id="local-video" style={{ flex: 1, height: 300, backgroundColor: '#000', borderRadius: 8 }} />
+        <div id="remote-video" ref={remoteContainerRef} style={{ flex: 1, height: 300, backgroundColor: '#000', borderRadius: 8 }} />
+      </Box>
     </Container>
   );
 };
