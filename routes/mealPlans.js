@@ -144,7 +144,6 @@ router.post('/:id/:week', async (req, res) => {
 });
 
 // Small helper function
-
 async function sendPushNotification(userId, title, message) {
   try {
     const userToken = await UserToken.findOne({ userId });
@@ -175,6 +174,7 @@ async function sendPushNotification(userId, title, message) {
   }
 }
 
+// Your modified route
 router.post('/:id/:week/:day/:mealType', async (req, res) => {
   try {
     const { id, week, day, mealType } = req.params;
@@ -192,15 +192,6 @@ router.post('/:id/:week/:day/:mealType', async (req, res) => {
     if (!validDays.includes(day) || !validMealTypes.includes(mealType)) {
       return res.status(400).json({ error: 'Invalid day or mealType' });
     }
-
-    // 🔵 Get the patient record first
-    const patientRecord = await PatientRecord.findById(id);
-
-    if (!patientRecord) {
-      return res.status(404).json({ error: 'Patient record not found' });
-    }
-
-    const userId = patientRecord.userId; // 🔥 this is the actual userId you need
 
     let mealPlan = await MealPlan.findOne({ patientId: id, week });
 
@@ -231,14 +222,14 @@ router.post('/:id/:week/:day/:mealType', async (req, res) => {
     const notificationMessage = `Your meal plan for ${day} (${mealType}) has been updated.`;
 
     const notification = new Notification({
-      userId: userId, // <-- Now correct: userId from patient record
+      userId: id, // patient id who will receive the notification
       title: 'Meal Plan Updated',
       message: notificationMessage,
     });
     await notification.save();
 
     // ====== SEND PUSH Notification ======
-    await sendPushNotification(userId, 'Meal Plan Updated', notificationMessage);
+    await sendPushNotification(id, 'Meal Plan Updated', notificationMessage);
 
     res.json(mealPlan);
   } catch (error) {
