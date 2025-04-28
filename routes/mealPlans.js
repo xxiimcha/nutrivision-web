@@ -2,6 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const MealPlan = require('../models/MealPlan');
 const predefinedMeals = require('../data/predefinedMeals'); // Import the predefined meals
+const Notification = require('../models/Notification'); // Make sure Notification is imported if not yet
 
 const router = express.Router();
 
@@ -140,11 +141,10 @@ router.post('/:id/:week', async (req, res) => {
   }
 });
 
-
 router.post('/:id/:week/:day/:mealType', async (req, res) => {
   try {
     const { id, week, day, mealType } = req.params;
-    const mealData = req.body; // This is the meal data you're sending in the request body
+    const mealData = req.body;
 
     console.log('ID:', id);
     console.log('Week:', week);
@@ -152,7 +152,6 @@ router.post('/:id/:week/:day/:mealType', async (req, res) => {
     console.log('Meal Type:', mealType);
     console.log('Meal Data:', mealData);
 
-    // Check if day and mealType are valid
     const validDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     const validMealTypes = ['breakfast', 'lunch', 'dinner'];
 
@@ -160,37 +159,39 @@ router.post('/:id/:week/:day/:mealType', async (req, res) => {
       return res.status(400).json({ error: 'Invalid day or mealType' });
     }
 
-    // Find the existing meal plan for the given patient and week
     let mealPlan = await MealPlan.findOne({ patientId: id, week });
 
-    // Ensure mealData has a valid status field
     const validStatuses = ['done', 'in-progress', ''];
     if (!validStatuses.includes(mealData.status)) {
-      mealData.status = 'in-progress'; // Set a default status if it's missing or invalid
+      mealData.status = 'in-progress';
     }
 
-    
-    if (!mealData.approved) {
-      mealData.approved = true; // Set a default status if it's missing or invalid
+    if (mealData.approved === undefined) {
+      mealData.approved = true;
     }
-
 
     if (mealPlan) {
-      // Update the specific meal on the specified day
-      mealPlan[day][mealType] = mealData; // This updates the specific day and meal type
+      mealPlan[day][mealType] = mealData;
     } else {
-      // If no meal plan exists, create a new one
       mealPlan = new MealPlan({
         patientId: id,
         week,
         [day]: {
-          [mealType]: mealData, // Initialize the day and the meal type
+          [mealType]: mealData,
         },
       });
     }
 
-    // Save the updated meal plan
     await mealPlan.save();
+
+    // ====== ADD NOTIFICATION CREATION HERE ======
+    const notification = new Notification({
+      userId: id, // patient id who will receive the notification
+      title: 'Meal Plan Updated',
+      message: `Your meal plan for ${day} (${mealType}) has been updated.`,
+    });
+    await notification.save();
+    // =============================================
 
     res.json(mealPlan);
   } catch (error) {
@@ -198,7 +199,6 @@ router.post('/:id/:week/:day/:mealType', async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 });
-
 
 // Update recommended status
 router.patch('/:id/:week/recommend/:day', async (req, res) => {
