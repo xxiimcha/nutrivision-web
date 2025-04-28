@@ -174,6 +174,49 @@ async function sendPushNotification(userId, title, message) {
     console.error('❌ Error sending push notification:', error);
   }
 }
+
+async function createNotificationAndSendPush(userId, title, message) {
+  try {
+    // Save Notification in DB
+    const notification = new Notification({
+      userId,
+      title,
+      message,
+    });
+    await notification.save();
+    console.log('✅ Notification saved to database');
+
+    // Find User Token
+    const userToken = await UserToken.findOne({ userId });
+
+    if (!userToken) {
+      console.log('⚠️ No FCM token found for this user.');
+      return;
+    }
+
+    // Prepare FCM Payload
+    const payload = {
+      to: userToken.token,
+      notification: {
+        title,
+        body: message,
+      },
+    };
+
+    // Send Push Notification
+    await axios.post('https://fcm.googleapis.com/fcm/send', payload, {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `key=${process.env.FCM_SERVER_KEY}`,
+      },
+    });
+
+    console.log('✅ Push notification sent successfully');
+  } catch (error) {
+    console.error('❌ Error sending notification and push:', error);
+  }
+}
+
 router.post('/:id/:week/:day/:mealType', async (req, res) => {
   try {
     const { id, week, day, mealType } = req.params;
@@ -192,14 +235,13 @@ router.post('/:id/:week/:day/:mealType', async (req, res) => {
       return res.status(400).json({ error: 'Invalid day or mealType' });
     }
 
-    // 🔵 Find the PatientRecord by patient _id
+    // Find the PatientRecord by patient _id
     const patientRecord = await PatientRecord.findById(id);
 
     if (!patientRecord) {
       return res.status(404).json({ error: 'Patient record not found' });
     }
 
-    // 🔥 Get the correct userId value
     const userId = patientRecord.userId;
 
     let mealPlan = await MealPlan.findOne({ patientId: id, week });
@@ -227,18 +269,9 @@ router.post('/:id/:week/:day/:mealType', async (req, res) => {
 
     await mealPlan.save();
 
-    // ====== SAVE Notification using correct userId ======
+    // 🔥 ONE clean call for both saving notification + sending push
     const notificationMessage = `Your meal plan for ${day} (${mealType}) has been updated.`;
-
-    const notification = new Notification({
-      userId: userId, // <<< ✅ Now inserting the correct userId from PatientRecord
-      title: 'Meal Plan Updated',
-      message: notificationMessage,
-    });
-    await notification.save();
-
-    // ====== SEND PUSH Notification using correct userId ======
-    await sendPushNotification(userId, 'Meal Plan Updated', notificationMessage);
+    await createNotificationAndSendPush(userId, 'Meal Plan Updated', notificationMessage);
 
     res.json(mealPlan);
   } catch (error) {
