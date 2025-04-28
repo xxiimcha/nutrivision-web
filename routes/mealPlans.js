@@ -4,7 +4,8 @@ const MealPlan = require('../models/MealPlan');
 const predefinedMeals = require('../data/predefinedMeals'); // Import the predefined meals
 const Notification = require('../models/Notification'); // Make sure Notification is imported if not yet
 const axios = require('axios');
-const UserToken = require('../models/UserToken'); // Import if not yet
+const UserToken = require('../models/UserToken');
+const PatientRecord = require('../models/PatientRecord');
 
 const router = express.Router();
 
@@ -173,8 +174,6 @@ async function sendPushNotification(userId, title, message) {
     console.error('❌ Error sending push notification:', error);
   }
 }
-
-// Your modified route
 router.post('/:id/:week/:day/:mealType', async (req, res) => {
   try {
     const { id, week, day, mealType } = req.params;
@@ -192,6 +191,16 @@ router.post('/:id/:week/:day/:mealType', async (req, res) => {
     if (!validDays.includes(day) || !validMealTypes.includes(mealType)) {
       return res.status(400).json({ error: 'Invalid day or mealType' });
     }
+
+    // 🔵 Find the PatientRecord by patient _id
+    const patientRecord = await PatientRecord.findById(id);
+
+    if (!patientRecord) {
+      return res.status(404).json({ error: 'Patient record not found' });
+    }
+
+    // 🔥 Get the correct userId value
+    const userId = patientRecord.userId;
 
     let mealPlan = await MealPlan.findOne({ patientId: id, week });
 
@@ -218,18 +227,18 @@ router.post('/:id/:week/:day/:mealType', async (req, res) => {
 
     await mealPlan.save();
 
-    // ====== SAVE Notification to database ======
+    // ====== SAVE Notification using correct userId ======
     const notificationMessage = `Your meal plan for ${day} (${mealType}) has been updated.`;
 
     const notification = new Notification({
-      userId: id, // patient id who will receive the notification
+      userId: userId, // <<< ✅ Now inserting the correct userId from PatientRecord
       title: 'Meal Plan Updated',
       message: notificationMessage,
     });
     await notification.save();
 
-    // ====== SEND PUSH Notification ======
-    await sendPushNotification(id, 'Meal Plan Updated', notificationMessage);
+    // ====== SEND PUSH Notification using correct userId ======
+    await sendPushNotification(userId, 'Meal Plan Updated', notificationMessage);
 
     res.json(mealPlan);
   } catch (error) {
