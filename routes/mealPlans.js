@@ -3,6 +3,8 @@ const mongoose = require('mongoose');
 const MealPlan = require('../models/MealPlan');
 const predefinedMeals = require('../data/predefinedMeals'); // Import the predefined meals
 const Notification = require('../models/Notification'); // Make sure Notification is imported if not yet
+const axios = require('axios');
+const UserToken = require('../models/UserToken'); // Import if not yet
 
 const router = express.Router();
 
@@ -141,6 +143,38 @@ router.post('/:id/:week', async (req, res) => {
   }
 });
 
+// Small helper function
+async function sendPushNotification(userId, title, message) {
+  try {
+    const userToken = await UserToken.findOne({ userId });
+
+    if (!userToken) {
+      console.log('No FCM token found for this user.');
+      return;
+    }
+
+    const payload = {
+      to: userToken.token,
+      notification: {
+        title,
+        body: message,
+      },
+    };
+
+    await axios.post('https://fcm.googleapis.com/fcm/send', payload, {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `key=${process.env.FCM_SERVER_KEY}`,
+      },
+    });
+
+    console.log('✅ Push notification sent successfully');
+  } catch (error) {
+    console.error('❌ Error sending push notification:', error);
+  }
+}
+
+// Your modified route
 router.post('/:id/:week/:day/:mealType', async (req, res) => {
   try {
     const { id, week, day, mealType } = req.params;
@@ -184,14 +218,18 @@ router.post('/:id/:week/:day/:mealType', async (req, res) => {
 
     await mealPlan.save();
 
-    // ====== ADD NOTIFICATION CREATION HERE ======
+    // ====== SAVE Notification to database ======
+    const notificationMessage = `Your meal plan for ${day} (${mealType}) has been updated.`;
+
     const notification = new Notification({
       userId: id, // patient id who will receive the notification
       title: 'Meal Plan Updated',
-      message: `Your meal plan for ${day} (${mealType}) has been updated.`,
+      message: notificationMessage,
     });
     await notification.save();
-    // =============================================
+
+    // ====== SEND PUSH Notification ======
+    await sendPushNotification(id, 'Meal Plan Updated', notificationMessage);
 
     res.json(mealPlan);
   } catch (error) {
