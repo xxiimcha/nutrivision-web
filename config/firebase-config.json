@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "nutrivision-8876b",
+  "private_key_id": "7466c19f047a5bdd9e07f841f63870173d6a96c9",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDBr7ateQAVsbpU\n1uvuCWUYcV/WjLPzYmBJ+XHUdQnhMSJ14EQ+JXWQ3y2qmZ76SZS7lG01TLrmCzW6\nNnHJhab6AmRZnyHp9usVrvzY8aR2PeZfrOO1Omw5cV3Ji7T6Mp88KBEbnhYdmWnN\nQIIiOXZqQiMPCj6gJnEs3+1rQdjTRVzsXyrMuBk06gtBZxWaKIv9qCcL3hWGeEAi\nL6wr9uwFkN2RNmcN+6iBPt7mybIBUX1EBSW4oG4j7i68anJ5EtxoFGSVDwwutnly\ncPv0J+YBza1cyEVdO7Onx0WzaxPwMfP753Dw0svI8fecwbJloNxe+LZfikBZ8Paw\ngMhKhExPAgMBAAECggEALutmEXfycU7wmITH+o4EE3vDf7HuFdOLB+CJlrIThp3k\nfzGo1nU0mbe21FEKlg8lHJvEKNlBnWCxzz5JKkxaOs5BiQRnrsnGASa20ccX1B0C\npcK4FrrkZLX1xlE1sjZ5JJWAL3SIXvs/Ch3KaIgLC4qh+467xQgK+pf0Z7s3z1Xd\nrF4Ugz5HDFpZpwg2q9bqsEXSZ+0JXGDP7VXHUHvizyYdAUWeNyAzFpZrLVQwwyGb\n1qjYAt1pdkt5aW4Xx+T1EUpA2AhWy0T0+pWB89hbxEMOdKp7D+T4hNZhu2t7TsfZ\nxnwu/kbSbf6R4/TQhmFLy4fkDqhSA4ewa/lhngUBAQKBgQD5bNrJV1u+G0kxanQx\nXUOAqg+XxvPugWIrP/nPfx2MOPG33DzhbYknJ7NZvPkCxPm6OhGCBTK4k9aH1aSP\nQwntRyAnBU+C0uXMOURIEEJGs1w9+raM2baOMlryp9l5ueOqX+SNg+VoEt6Iw5ik\nzqJRI2gCQ0liw5aZB5qWCA53LwKBgQDGyrpaV5TSH9y9Le3VReYqGyZ7DXQpUa1U\nMBlHMUe+sbXZSNSi5c9p9LUYGR6yFatOSi6+JomyaDdkACEipZuXX2ag+8QzEGs2\n35vTy7ybTCPcx4MuMA6GPmwnagqf6ogzD7FFrwKpvrPpGWxRle7V2H+eI6ou3AzF\n9iQXLeg04QKBgQDIb6JttAbkgVbTICHZXYIWThMTu+xgWJbD/LhJ93OOMGCGiLRf\nzz8tOOkWjxZoFFQ+Q9W372dwDlWSeKux+IRsqgB7evgHQGUsNUTayD4KRK42nFfA\nXmAmau7NGvdXq3r5ee/XjQt4E9nCe7QZlHe5zkMRtnKtrFFEDmk6caT2PwKBgQCD\nB0rvkzy/h0ra0vQpmCoOZNjnUMXZGkHx9MYkm8HbWo0vTAcD3A/rmeTnnl8SKKBC\nOTk4EnS+SF0CJ+evS5MTokkmIOyAb/kLMTYn0uldP0GAG21Gu1xHdcuZ6xZXs6HU\nbip9cM6DjfRN13kDCZ1kDJCJbp6UxmwQ6518PcEJYQKBgE4AJSj8FZ43q4cNUlnG\nN5A3tdBQxYRboR6/ykam2fViYum1gzkJXK/LFa6UilwXc4V6wbj5ptRP0je99IGw\nGVRoQGSO7Jyu2ltXdOGaa0HEMcj84L0PQ7o2ABXuDuryrPOWOtk+kfQVbPRKsBcd\n6u+FV8ERwqd9O2DXrRFR0Evk\n-----END PRIVATE KEY-----\n",
+  "client_email": "firebase-adminsdk-ylgmx@nutrivision-8876b.iam.gserviceaccount.com",
+  "client_id": "108622292162497534819",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-ylgmx%40nutrivision-8876b.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}

@@ -8,9 +8,9 @@ const UserToken = require('../models/UserToken');
 const PatientRecord = require('../models/PatientRecord');
 
 const { GoogleAuth } = require('google-auth-library');
-const serviceAccount = require('../fcm-service-account.json');
+const serviceAccount = require('../config/firebase-config.json');
 
-const PROJECT_ID = 'nutrivision'; // Replace with your exact Firebase project ID
+const PROJECT_ID = 'nutrivision-8876b';
 const router = express.Router();
 
 // Helper function to fetch suggested meals from predefined data
