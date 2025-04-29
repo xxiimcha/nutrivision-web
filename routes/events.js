@@ -25,7 +25,7 @@ async function sendGlobalPushNotification(title, body) {
       scopes: ['https://www.googleapis.com/auth/firebase.messaging'],
     });
 
-    const accessToken = await auth.getAccessToken();
+    const { token } = await auth.getAccessToken(); // FIXED: get the raw token
 
     await Promise.all(tokens.map(userToken => {
       return axios.post(
@@ -44,7 +44,7 @@ async function sendGlobalPushNotification(title, body) {
         },
         {
           headers: {
-            Authorization: `Bearer ${accessToken.token}`,
+            Authorization: `Bearer ${token}`, // FIXED: use token, not object
             'Content-Type': 'application/json',
           },
         }
