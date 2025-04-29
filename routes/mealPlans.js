@@ -240,7 +240,7 @@ async function createNotificationAndSendPush(userId, title, message) {
       fcmMessage,
       {
         headers: {
-          Authorization: `Bearer ${accessToken.token}`,
+          Authorization: `Bearer ${accessToken}`,
           'Content-Type': 'application/json',
         },
       }
