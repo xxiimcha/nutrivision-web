@@ -20,6 +20,7 @@
     "firebase": "^10.14.0",
     "firebase-admin": "^13.3.0",
     "formik": "^2.4.6",
+    "google-auth-library": "^9.15.1",
     "helmet": "^8.0.0",
     "http": "^0.0.1-security",
     "moment": "^2.30.1",

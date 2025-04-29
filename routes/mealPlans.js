@@ -7,6 +7,10 @@ const axios = require('axios');
 const UserToken = require('../models/UserToken');
 const PatientRecord = require('../models/PatientRecord');
 
+const { GoogleAuth } = require('google-auth-library');
+const serviceAccount = require('../fcm-service-account.json');
+
+const PROJECT_ID = 'nutrivision'; // Replace with your exact Firebase project ID
 const router = express.Router();
 
 // Helper function to fetch suggested meals from predefined data
@@ -186,34 +190,46 @@ async function createNotificationAndSendPush(userId, title, message) {
     await notification.save();
     console.log('✅ Notification saved to database');
 
-    // Find User Token
+    // Fetch the token
     const userToken = await UserToken.findOne({ userId });
-
     if (!userToken) {
       console.log('⚠️ No FCM token found for this user.');
       return;
     }
 
-    // Prepare FCM Payload
-    const payload = {
-      to: userToken.token,
-      notification: {
-        title,
-        body: message,
+    // Authenticate using service account
+    const auth = new GoogleAuth({
+      credentials: serviceAccount,
+      scopes: ['https://www.googleapis.com/auth/firebase.messaging'],
+    });
+
+    const accessToken = await auth.getAccessToken();
+
+    // Construct FCM v1 message payload
+    const fcmMessage = {
+      message: {
+        token: userToken.token,
+        notification: {
+          title,
+          body: message,
+        },
       },
     };
 
-    // Send Push Notification
-    await axios.post('https://fcm.googleapis.com/fcm/send', payload, {
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `key=${process.env.FCM_SERVER_KEY}`,
-      },
-    });
+    const response = await axios.post(
+      `https://fcm.googleapis.com/v1/projects/${PROJECT_ID}/messages:send`,
+      fcmMessage,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken.token}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
 
-    console.log('✅ Push notification sent successfully');
+    console.log('✅ Push notification sent successfully via FCM v1:', response.data);
   } catch (error) {
-    console.error('❌ Error sending notification and push:', error);
+    console.error('❌ Error sending notification and push:', error.response?.data || error.message);
   }
 }
 
