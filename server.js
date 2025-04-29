@@ -7,10 +7,15 @@ const path = require('path');
 const fs = require('fs');
 const http = require('http');
 const { Server } = require('socket.io');
-const admin = require('firebase-admin'); // NEW: Firebase Admin SDK
+const admin = require('firebase-admin'); // Firebase Admin SDK
 
-// Firebase Admin Initialization
-const serviceAccount = require('./fcm-service-account.json'); // Your service account file
+// ✅ DECODE base64 and initialize Firebase Admin
+const base64Key = process.env.FIREBASE_BASE64;
+if (!base64Key) {
+  throw new Error('FIREBASE_BASE64 is missing in your environment variables');
+}
+const serviceAccount = JSON.parse(Buffer.from(base64Key, 'base64').toString('utf8'));
+
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
 });
