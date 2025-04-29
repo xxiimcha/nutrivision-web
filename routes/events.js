@@ -1,20 +1,66 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const Event = require('../models/Event');
-const Notification = require('../models/Notification'); // Import Notification model
+const Notification = require('../models/Notification');
+const UserToken = require('../models/UserToken');
+const { GoogleAuth } = require('google-auth-library');
+require('dotenv').config();
 
 const router = express.Router();
+const PROJECT_ID = 'nutrivision-8876b';
 
-// Get all events, optionally filtered by status
-router.get('/', async (req, res) => {
-  const { status } = req.query; // Allow filtering by status
+// Decode Firebase config from base64
+const firebaseConfigBase64 = process.env.FIREBASE_CONFIG_BASE64;
+if (!firebaseConfigBase64) throw new Error('Missing FIREBASE_CONFIG_BASE64');
+const firebaseConfigJson = JSON.parse(Buffer.from(firebaseConfigBase64, 'base64').toString('utf8'));
 
+// Push helper
+async function sendGlobalPushNotification(title, body) {
   try {
-    let query = {};
-    if (status) {
-      query.status = status;
-    }
+    const tokens = await UserToken.find({}); // Broadcast to all users
 
+    const auth = new GoogleAuth({
+      credentials: firebaseConfigJson,
+      scopes: ['https://www.googleapis.com/auth/firebase.messaging'],
+    });
+
+    const accessToken = await auth.getAccessToken();
+
+    await Promise.all(tokens.map(userToken => {
+      return axios.post(
+        `https://fcm.googleapis.com/v1/projects/${PROJECT_ID}/messages:send`,
+        {
+          message: {
+            token: userToken.token,
+            notification: { title, body },
+            android: {
+              notification: {
+                sound: 'default',
+                click_action: 'FLUTTER_NOTIFICATION_CLICK',
+              }
+            }
+          }
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken.token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+    }));
+
+    console.log('✅ Push notifications sent');
+  } catch (err) {
+    console.error('❌ Push notification error:', err.response?.data || err.message);
+  }
+}
+
+// GET all events
+router.get('/', async (req, res) => {
+  const { status } = req.query;
+  try {
+    const query = status ? { status } : {};
     const events = await Event.find(query);
     res.status(200).json(events);
   } catch (error) {
@@ -22,116 +68,74 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Create a new event and add a global notification
+// CREATE new event
 router.post('/', async (req, res) => {
   const { title, location, date, time, recipient, status } = req.body;
-
   try {
-    const newEvent = new Event({
-      title,
-      location,
-      date,
-      time,
-      recipient,
-      status: status || 'upcoming', // Default to 'upcoming' if status is not provided
-    });
-
+    const newEvent = new Event({ title, location, date, time, recipient, status: status || 'upcoming' });
     await newEvent.save();
 
-    // Create a global notification for the event creation
-    const notification = new Notification({
+    const notif = new Notification({
       title: 'New Event Created',
       message: `Event "${title}" has been created for ${date} at ${time}.`,
     });
+    await notif.save();
 
-    await notification.save();
-
+    await sendGlobalPushNotification('New Event Created', `Event "${title}" is scheduled for ${date} at ${time}.`);
     res.status(201).json(newEvent);
   } catch (error) {
     res.status(500).json({ message: 'Error creating event', error });
   }
 });
 
-// Route to cancel an event
+// CANCEL event
 router.put('/:id/cancel', async (req, res) => {
   const { id } = req.params;
-
-  // Check if the ID is a valid MongoDB ObjectId
-  if (!mongoose.Types.ObjectId.isValid(id)) {
-    return res.status(400).json({ message: 'Invalid Event ID' });
-  }
+  if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ message: 'Invalid Event ID' });
 
   try {
-    // Find the event by ID and update its status to 'cancelled'
-    const cancelledEvent = await Event.findByIdAndUpdate(
-      id,
-      { status: 'cancelled' },
-      { new: true }
-    );
+    const cancelled = await Event.findByIdAndUpdate(id, { status: 'cancelled' }, { new: true });
+    if (!cancelled) return res.status(404).json({ message: 'Event not found' });
 
-    if (!cancelledEvent) {
-      return res.status(404).json({ message: 'Event not found' });
-    }
+    const msg = `Event "${cancelled.title}" scheduled for ${cancelled.date} has been canceled.`;
+    await new Notification({ title: 'Event Canceled', message: msg }).save();
+    await sendGlobalPushNotification('Event Canceled', msg);
 
-    // Create a global notification for the event cancellation
-    const notification = new Notification({
-      title: 'Event Canceled',
-      message: `Event "${cancelledEvent.title}" scheduled for ${cancelledEvent.date} has been canceled.`,
-    });
-
-    await notification.save();
-
-    res.status(200).json({ message: 'Event cancelled', event: cancelledEvent });
+    res.status(200).json({ message: 'Event cancelled', event: cancelled });
   } catch (error) {
     res.status(500).json({ message: 'Error cancelling event', error });
   }
 });
 
+// UPDATE event
 router.put('/:id', async (req, res) => {
   const { id } = req.params;
-
-  // Check if the ID is a valid MongoDB ObjectId
-  if (!mongoose.Types.ObjectId.isValid(id)) {
-    return res.status(400).json({ message: 'Invalid Event ID' });
-  }
+  if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ message: 'Invalid Event ID' });
 
   const { title, location, date, time, recipient, status } = req.body;
-
   try {
-    const updatedEvent = await Event.findByIdAndUpdate(
+    const updated = await Event.findByIdAndUpdate(
       id,
-      { title, location, date, time, recipient, status }, // Update status as well
+      { title, location, date, time, recipient, status },
       { new: true }
     );
-
-    if (!updatedEvent) {
-      return res.status(404).json({ message: 'Event not found' });
-    }
-
-    res.status(200).json(updatedEvent);
+    if (!updated) return res.status(404).json({ message: 'Event not found' });
+    res.status(200).json(updated);
   } catch (error) {
     res.status(500).json({ message: 'Error updating event', error });
   }
 });
 
-// Delete an event and add a global notification
+// DELETE event
 router.delete('/:id', async (req, res) => {
   const { id } = req.params;
-
   try {
-    const deletedEvent = await Event.findByIdAndDelete(id);
+    const deleted = await Event.findByIdAndDelete(id);
+    if (!deleted) return res.status(404).json({ message: 'Event not found' });
 
-    if (!deletedEvent) {
-      return res.status(404).json({ message: 'Event not found' });
-    }
-
-    // Create a global notification for the event cancellation
-    const notification = new Notification({
-      title: 'Event Canceled',
-      message: `Event "${deletedEvent.title}" scheduled for ${deletedEvent.date} has been canceled.`,
-    });
-
-    await notification.save();
+    const msg = `Event "${deleted.title}" scheduled for ${deleted.date} has been canceled.`;
+    await new Notification({ title: 'Event Canceled', message: msg }).save();
+    await sendGlobalPushNotification('Event Deleted', msg);
 
     res.status(200).json({ message: 'Event deleted' });
   } catch (error) {
