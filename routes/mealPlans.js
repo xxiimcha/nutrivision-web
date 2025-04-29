@@ -8,9 +8,14 @@ const UserToken = require('../models/UserToken');
 const PatientRecord = require('../models/PatientRecord');
 
 const { GoogleAuth } = require('google-auth-library');
-const serviceAccount = require('../config/firebase-config.json');
 
-const PROJECT_ID = 'nutrivision-8876b';
+const firebaseConfigBase64 = process.env.FIREBASE_CONFIG_BASE64;
+if (!firebaseConfigBase64) {
+  throw new Error('Missing FIREBASE_CONFIG_BASE64 env variable');
+}
+const firebaseConfigJson = JSON.parse(Buffer.from(firebaseConfigBase64, 'base64').toString('utf8'));
+
+const PROJECT_ID = 'nutrivision-8876b'; // must match what's in the JSON file
 const router = express.Router();
 
 // Helper function to fetch suggested meals from predefined data
@@ -179,9 +184,16 @@ async function sendPushNotification(userId, title, message) {
   }
 }
 
+/**
+ * Saves a notification to the database and sends a push notification via FCM HTTP v1
+ * @param {String} userId - The MongoDB ObjectId of the user to notify
+ * @param {String} title - The title of the notification
+ * @param {String} message - The body content of the notification
+ */
+
 async function createNotificationAndSendPush(userId, title, message) {
   try {
-    // Save Notification in DB
+    // ✅ 1. Save notification to MongoDB
     const notification = new Notification({
       userId,
       title,
@@ -190,22 +202,22 @@ async function createNotificationAndSendPush(userId, title, message) {
     await notification.save();
     console.log('✅ Notification saved to database');
 
-    // Fetch the token
+    // ✅ 2. Fetch user's FCM token
     const userToken = await UserToken.findOne({ userId });
-    if (!userToken) {
-      console.log('⚠️ No FCM token found for this user.');
+    if (!userToken || !userToken.token) {
+      console.warn('⚠️ No FCM token found for user:', userId);
       return;
     }
 
-    // Authenticate using service account
+    // ✅ 3. Authenticate using service account to get access token
     const auth = new GoogleAuth({
-      credentials: serviceAccount,
+      credentials: firebaseConfigJson,
       scopes: ['https://www.googleapis.com/auth/firebase.messaging'],
     });
 
     const accessToken = await auth.getAccessToken();
 
-    // Construct FCM v1 message payload
+    // ✅ 4. Construct FCM v1 message payload
     const fcmMessage = {
       message: {
         token: userToken.token,
@@ -213,9 +225,16 @@ async function createNotificationAndSendPush(userId, title, message) {
           title,
           body: message,
         },
+        android: {
+          notification: {
+            sound: 'default',
+            click_action: 'FLUTTER_NOTIFICATION_CLICK', // Required for Flutter
+          },
+        },
       },
     };
 
+    // ✅ 5. Send the notification to FCM
     const response = await axios.post(
       `https://fcm.googleapis.com/v1/projects/${PROJECT_ID}/messages:send`,
       fcmMessage,
@@ -229,7 +248,10 @@ async function createNotificationAndSendPush(userId, title, message) {
 
     console.log('✅ Push notification sent successfully via FCM v1:', response.data);
   } catch (error) {
-    console.error('❌ Error sending notification and push:', error.response?.data || error.message);
+    console.error(
+      '❌ Error sending notification and push:',
+      error.response?.data || error.message
+    );
   }
 }
 
