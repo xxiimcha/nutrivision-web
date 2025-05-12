@@ -18,16 +18,21 @@ const firebaseConfigJson = JSON.parse(Buffer.from(firebaseConfigBase64, 'base64'
 // Push helper
 async function sendGlobalPushNotification(title, body) {
   try {
-    const tokens = await UserToken.find({}); // Broadcast to all users
+    const tokens = await UserToken.find({ token: { $exists: true, $ne: null, $ne: '' } });
+
+    if (tokens.length === 0) {
+      console.warn('⚠️ No valid FCM tokens found.');
+      return;
+    }
 
     const auth = new GoogleAuth({
       credentials: firebaseConfigJson,
       scopes: ['https://www.googleapis.com/auth/firebase.messaging'],
     });
 
-    const { token } = await auth.getAccessToken(); // FIXED: get the raw token
+    const { token: accessToken } = await auth.getAccessToken();
 
-    await Promise.all(tokens.map(userToken => {
+    const results = await Promise.allSettled(tokens.map(userToken => {
       return axios.post(
         `https://fcm.googleapis.com/v1/projects/${PROJECT_ID}/messages:send`,
         {
@@ -44,18 +49,29 @@ async function sendGlobalPushNotification(title, body) {
         },
         {
           headers: {
-            Authorization: `Bearer ${token}`, // FIXED: use token, not object
+            Authorization: `Bearer ${accessToken}`,
             'Content-Type': 'application/json',
           },
         }
       );
     }));
 
-    console.log('✅ Push notifications sent');
+    let successCount = 0;
+    results.forEach((result, index) => {
+      const currentToken = tokens[index].token;
+      if (result.status === 'fulfilled') {
+        successCount++;
+      } else {
+        console.error(`❌ Failed to send to ${currentToken}:`, result.reason?.response?.data || result.reason);
+      }
+    });
+
+    console.log(`✅ Push notifications sent to ${successCount}/${tokens.length} users.`);
   } catch (err) {
-    console.error('❌ Push notification error:', err.response?.data || err.message);
+    console.error('❌ Push notification setup error:', err.message || err);
   }
 }
+
 
 // GET all events
 router.get('/', async (req, res) => {
