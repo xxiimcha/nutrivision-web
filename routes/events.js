@@ -15,7 +15,7 @@ const firebaseConfigBase64 = process.env.FIREBASE_CONFIG_BASE64;
 if (!firebaseConfigBase64) throw new Error('Missing FIREBASE_CONFIG_BASE64');
 const firebaseConfigJson = JSON.parse(Buffer.from(firebaseConfigBase64, 'base64').toString('utf8'));
 
-// Push helper
+// ✅ Fixed FCM push function
 async function sendGlobalPushNotification(title, body) {
   try {
     const tokens = await UserToken.find({ token: { $exists: true, $ne: null, $ne: '' } });
@@ -30,7 +30,8 @@ async function sendGlobalPushNotification(title, body) {
       scopes: ['https://www.googleapis.com/auth/firebase.messaging'],
     });
 
-    const { token: accessToken } = await auth.getAccessToken();
+    const accessToken = (await auth.getAccessToken()).token;
+    if (!accessToken) throw new Error('❌ Failed to retrieve access token.');
 
     const results = await Promise.allSettled(tokens.map(userToken => {
       return axios.post(
@@ -38,7 +39,10 @@ async function sendGlobalPushNotification(title, body) {
         {
           message: {
             token: userToken.token,
-            notification: { title, body },
+            notification: {
+              title,
+              body,
+            },
             android: {
               notification: {
                 sound: 'default',
@@ -58,20 +62,19 @@ async function sendGlobalPushNotification(title, body) {
 
     let successCount = 0;
     results.forEach((result, index) => {
-      const currentToken = tokens[index].token;
+      const token = tokens[index].token;
       if (result.status === 'fulfilled') {
         successCount++;
       } else {
-        console.error(`❌ Failed to send to ${currentToken}:`, result.reason?.response?.data || result.reason);
+        console.error(`❌ Failed to send to ${token}:`, result.reason?.response?.data || result.reason);
       }
     });
 
     console.log(`✅ Push notifications sent to ${successCount}/${tokens.length} users.`);
   } catch (err) {
-    console.error('❌ Push notification setup error:', err.message || err);
+    console.error('❌ Push notification error:', err.message || err);
   }
 }
-
 
 // GET all events
 router.get('/', async (req, res) => {
@@ -151,7 +154,7 @@ router.delete('/:id', async (req, res) => {
     if (!deleted) return res.status(404).json({ message: 'Event not found' });
 
     const msg = `Event "${deleted.title}" scheduled for ${deleted.date} has been canceled.`;
-    await new Notification({ title: 'Event Canceled', message: msg }).save();
+    await new Notification({ title: 'Event Deleted', message: msg }).save();
     await sendGlobalPushNotification('Event Deleted', msg);
 
     res.status(200).json({ message: 'Event deleted' });
