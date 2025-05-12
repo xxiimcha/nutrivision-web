@@ -16,25 +16,24 @@ if (!firebaseConfigBase64) throw new Error('Missing FIREBASE_CONFIG_BASE64');
 
 const firebaseConfigJson = JSON.parse(Buffer.from(firebaseConfigBase64, 'base64').toString('utf8'));
 
-// ✅ Reusable FCM + DB Notification sender
-async function createNotificationAndSendPush(userToken, title, message) {
+// 🔔 Send push + log to Notification collection
+async function createNotificationAndSendPush(userId, token, title, message) {
   try {
-    // Save to DB
-    await new Notification({ title, message }).save();
-    console.log('✅ Notification saved to database');
+    await new Notification({ userId, title, message }).save();
+    console.log(`✅ Notification saved for user ${userId}`);
 
-    // Auth to Firebase
     const auth = new GoogleAuth({
       credentials: firebaseConfigJson,
       scopes: ['https://www.googleapis.com/auth/firebase.messaging'],
     });
 
-    const accessToken = (await auth.getAccessToken()).token;
-    if (!accessToken) throw new Error('❌ Failed to retrieve access token.');
+    const accessTokenObj = await auth.getAccessToken();
+    const accessToken = accessTokenObj?.token;
+    if (!accessToken) throw new Error('❌ Failed to retrieve access token');
 
     const payload = {
       message: {
-        token: userToken,
+        token,
         notification: { title, body: message },
         android: {
           notification: {
@@ -56,23 +55,27 @@ async function createNotificationAndSendPush(userToken, title, message) {
       }
     );
 
-    console.log('✅ Push notification sent successfully:', response.data);
-  } catch (err) {
-    console.error('❌ Push error:', err.response?.data || err.message);
+    console.log(`✅ Push sent to ${userId}:`, response.data);
+  } catch (error) {
+    console.error(`❌ Failed to push to ${userId}:`, error.response?.data || error.message);
   }
 }
 
-// ✅ Notify all users with tokens
+// 🔄 Broadcast to all tokens in the usertokens collection
 async function broadcastNotificationToAll(title, message) {
-  const tokens = await UserToken.find({ token: { $exists: true, $ne: null, $ne: '' } });
-  if (tokens.length === 0) return console.warn('⚠️ No valid FCM tokens found.');
+  const userTokens = await UserToken.find({ token: { $exists: true, $ne: null, $ne: '' } });
 
-  for (const t of tokens) {
-    await createNotificationAndSendPush(t.token, title, message);
+  if (userTokens.length === 0) {
+    console.warn('⚠️ No valid user tokens found.');
+    return;
+  }
+
+  for (const user of userTokens) {
+    await createNotificationAndSendPush(user.userId, user.token, title, message);
   }
 }
 
-// GET all events
+// 📅 GET all events
 router.get('/', async (req, res) => {
   const { status } = req.query;
   try {
@@ -84,7 +87,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// CREATE new event
+// 🆕 CREATE event
 router.post('/', async (req, res) => {
   const { title, location, date, time, recipient, status } = req.body;
   try {
@@ -100,7 +103,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-// CANCEL event
+// ❌ CANCEL event
 router.put('/:id/cancel', async (req, res) => {
   const { id } = req.params;
   if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ message: 'Invalid Event ID' });
@@ -118,7 +121,7 @@ router.put('/:id/cancel', async (req, res) => {
   }
 });
 
-// UPDATE event
+// ✏️ UPDATE event
 router.put('/:id', async (req, res) => {
   const { id } = req.params;
   if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ message: 'Invalid Event ID' });
@@ -138,7 +141,7 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// DELETE event
+// 🗑️ DELETE event
 router.delete('/:id', async (req, res) => {
   const { id } = req.params;
   try {
