@@ -27,9 +27,9 @@ async function createNotificationAndSendPush(userId, token, title, message) {
       scopes: ['https://www.googleapis.com/auth/firebase.messaging'],
     });
 
-    const accessTokenObj = await auth.getAccessToken();
-    const accessToken = accessTokenObj?.token;
-    if (!accessToken) throw new Error('❌ Failed to retrieve access token');
+    const accessToken = await auth.getAccessToken();
+  if (!accessToken) throw new Error('❌ Failed to retrieve access token');
+
 
     const payload = {
       message: {
