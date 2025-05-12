@@ -10,21 +10,20 @@ const axios = require('axios');
 const router = express.Router();
 const PROJECT_ID = 'nutrivision-8876b';
 
-// Decode Firebase config from base64
+// Decode Firebase Admin SDK config from base64
 const firebaseConfigBase64 = process.env.FIREBASE_CONFIG_BASE64;
 if (!firebaseConfigBase64) throw new Error('Missing FIREBASE_CONFIG_BASE64');
+
 const firebaseConfigJson = JSON.parse(Buffer.from(firebaseConfigBase64, 'base64').toString('utf8'));
 
-// ✅ Fixed FCM push function
-async function sendGlobalPushNotification(title, body) {
+// ✅ Reusable FCM + DB Notification sender
+async function createNotificationAndSendPush(userToken, title, message) {
   try {
-    const tokens = await UserToken.find({ token: { $exists: true, $ne: null, $ne: '' } });
+    // Save to DB
+    await new Notification({ title, message }).save();
+    console.log('✅ Notification saved to database');
 
-    if (tokens.length === 0) {
-      console.warn('⚠️ No valid FCM tokens found.');
-      return;
-    }
-
+    // Auth to Firebase
     const auth = new GoogleAuth({
       credentials: firebaseConfigJson,
       scopes: ['https://www.googleapis.com/auth/firebase.messaging'],
@@ -33,46 +32,43 @@ async function sendGlobalPushNotification(title, body) {
     const accessToken = (await auth.getAccessToken()).token;
     if (!accessToken) throw new Error('❌ Failed to retrieve access token.');
 
-    const results = await Promise.allSettled(tokens.map(userToken => {
-      return axios.post(
-        `https://fcm.googleapis.com/v1/projects/${PROJECT_ID}/messages:send`,
-        {
-          message: {
-            token: userToken.token,
-            notification: {
-              title,
-              body,
-            },
-            android: {
-              notification: {
-                sound: 'default',
-                click_action: 'FLUTTER_NOTIFICATION_CLICK',
-              }
-            }
-          }
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
+    const payload = {
+      message: {
+        token: userToken,
+        notification: { title, body: message },
+        android: {
+          notification: {
+            sound: 'default',
+            click_action: 'FLUTTER_NOTIFICATION_CLICK',
           },
-        }
-      );
-    }));
+        },
+      },
+    };
 
-    let successCount = 0;
-    results.forEach((result, index) => {
-      const token = tokens[index].token;
-      if (result.status === 'fulfilled') {
-        successCount++;
-      } else {
-        console.error(`❌ Failed to send to ${token}:`, result.reason?.response?.data || result.reason);
+    const response = await axios.post(
+      `https://fcm.googleapis.com/v1/projects/${PROJECT_ID}/messages:send`,
+      payload,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
       }
-    });
+    );
 
-    console.log(`✅ Push notifications sent to ${successCount}/${tokens.length} users.`);
+    console.log('✅ Push notification sent successfully:', response.data);
   } catch (err) {
-    console.error('❌ Push notification error:', err.message || err);
+    console.error('❌ Push error:', err.response?.data || err.message);
+  }
+}
+
+// ✅ Notify all users with tokens
+async function broadcastNotificationToAll(title, message) {
+  const tokens = await UserToken.find({ token: { $exists: true, $ne: null, $ne: '' } });
+  if (tokens.length === 0) return console.warn('⚠️ No valid FCM tokens found.');
+
+  for (const t of tokens) {
+    await createNotificationAndSendPush(t.token, title, message);
   }
 }
 
@@ -95,13 +91,9 @@ router.post('/', async (req, res) => {
     const newEvent = new Event({ title, location, date, time, recipient, status: status || 'upcoming' });
     await newEvent.save();
 
-    const notif = new Notification({
-      title: 'New Event Created',
-      message: `Event "${title}" has been created for ${date} at ${time}.`,
-    });
-    await notif.save();
+    const msg = `Event "${title}" is scheduled for ${date} at ${time}.`;
+    await broadcastNotificationToAll('New Event Created', msg);
 
-    await sendGlobalPushNotification('New Event Created', `Event "${title}" is scheduled for ${date} at ${time}.`);
     res.status(201).json(newEvent);
   } catch (error) {
     res.status(500).json({ message: 'Error creating event', error });
@@ -118,8 +110,7 @@ router.put('/:id/cancel', async (req, res) => {
     if (!cancelled) return res.status(404).json({ message: 'Event not found' });
 
     const msg = `Event "${cancelled.title}" scheduled for ${cancelled.date} has been canceled.`;
-    await new Notification({ title: 'Event Canceled', message: msg }).save();
-    await sendGlobalPushNotification('Event Canceled', msg);
+    await broadcastNotificationToAll('Event Canceled', msg);
 
     res.status(200).json({ message: 'Event cancelled', event: cancelled });
   } catch (error) {
@@ -140,6 +131,7 @@ router.put('/:id', async (req, res) => {
       { new: true }
     );
     if (!updated) return res.status(404).json({ message: 'Event not found' });
+
     res.status(200).json(updated);
   } catch (error) {
     res.status(500).json({ message: 'Error updating event', error });
@@ -153,9 +145,8 @@ router.delete('/:id', async (req, res) => {
     const deleted = await Event.findByIdAndDelete(id);
     if (!deleted) return res.status(404).json({ message: 'Event not found' });
 
-    const msg = `Event "${deleted.title}" scheduled for ${deleted.date} has been canceled.`;
-    await new Notification({ title: 'Event Deleted', message: msg }).save();
-    await sendGlobalPushNotification('Event Deleted', msg);
+    const msg = `Event "${deleted.title}" scheduled for ${deleted.date} has been deleted.`;
+    await broadcastNotificationToAll('Event Deleted', msg);
 
     res.status(200).json({ message: 'Event deleted' });
   } catch (error) {
