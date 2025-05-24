@@ -1,30 +1,14 @@
 import React, { useEffect, useState, useContext, useRef } from 'react';
 import io from 'socket.io-client';
 import {
-  Box,
-  Button,
-  Container,
-  TextField,
-  Typography,
-  List,
-  ListItem,
-  ListItemText,
-  Avatar,
-  Grid,
-  IconButton,
-  Paper,
-  Card,
-  CardContent,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
+  Box, Button, Container, TextField, Typography, List, ListItem, ListItemText, Avatar,
+  Grid, IconButton, Paper, Card, CardContent, Dialog, DialogTitle, DialogContent
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import VideocamIcon from '@mui/icons-material/Videocam';
 import axios from 'axios';
 import { UserContext } from '../context/UserContext';
-import { initiateCall } from '../services/AgoraAPI';
+import { initiateAgoraCall, leaveAgoraCall } from '../services/AgoraAPI';
 
 const socket = io(process.env.REACT_APP_SOCKET_URL);
 
@@ -38,8 +22,11 @@ const Telemed = () => {
   const [incomingCall, setIncomingCall] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [userStatus, setUserStatus] = useState({});
+  const [isInCall, setIsInCall] = useState(false);
   const messagesEndRef = useRef(null);
-  const remoteContainerRef = useRef(null); // For remote video
+
+  const AGORA_APP_ID = process.env.REACT_APP_AGORA_APP_ID;
+  const AGORA_TEMP_TOKEN = process.env.REACT_APP_AGORA_TEMP_TOKEN;
 
   useEffect(() => {
     socket.emit('register-user', userId);
@@ -115,15 +102,26 @@ const Telemed = () => {
     }
   }, [messages]);
 
-  const acceptCall = () => {
-    console.log(`Accepting call from ${incomingCall}`);
+  const acceptCall = async () => {
+    setIsInCall(true);
     setIncomingCall(null);
-    // You can add Agora video call initiation here
+    await initiateAgoraCall(
+      AGORA_APP_ID,
+      `${incomingCall}-${userId}`,
+      AGORA_TEMP_TOKEN,
+      userId.toString(),
+      'local-video',
+      'remote-video'
+    );
   };
 
   const declineCall = () => {
-    console.log(`Declining call from ${incomingCall}`);
     setIncomingCall(null);
+  };
+
+  const endCall = async () => {
+    await leaveAgoraCall();
+    setIsInCall(false);
   };
 
   return (
@@ -138,8 +136,7 @@ const Telemed = () => {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search user..."
                 InputProps={{ startAdornment: <SearchIcon position="start" /> }}
-                fullWidth
-                sx={{ mb: 2 }}
+                fullWidth sx={{ mb: 2 }}
               />
               <List sx={{ maxHeight: '60vh', overflowY: 'auto' }}>
                 {filteredUsers.length > 0 ? (
@@ -183,7 +180,14 @@ const Telemed = () => {
                   Conversation with {selectedUser.firstName} {selectedUser.lastName}
                 </Typography>
                 <IconButton
-                  onClick={() => initiateCall(selectedUser._id, 'video', userId)}
+                  onClick={() => initiateAgoraCall(
+                    AGORA_APP_ID,
+                    `${userId}-${selectedUser._id}`,
+                    AGORA_TEMP_TOKEN,
+                    userId.toString(),
+                    'local-video',
+                    'remote-video'
+                  )}
                   disabled={userStatus[selectedUser._id] !== 'online'}
                 >
                   <VideocamIcon />
@@ -199,56 +203,46 @@ const Telemed = () => {
                 mb: 2,
                 boxShadow: 2,
               }}>
-                {messages.length > 0 ? (
-                  messages.map((message, index) => {
-                    const messageDate = new Date(message.timestamp);
-                    let hours = (messageDate.getUTCHours() + 8) % 24;
-                    const minutes = messageDate.getUTCMinutes();
-                    const ampm = hours >= 12 ? 'PM' : 'AM';
-                    hours = hours % 12 || 12;
-                    const formattedTime = `${hours}:${minutes < 10 ? '0' : ''}${minutes} ${ampm}`;
-                    const formattedDate = messageDate.toLocaleDateString('en-US', {
-                      weekday: 'long', year: 'numeric', month: 'short', day: 'numeric',
-                    });
-                    const previous = messages[index - 1];
-                    const prevDate = previous ? new Date(previous.timestamp).toLocaleDateString('en-US', {
-                      weekday: 'long', year: 'numeric', month: 'short', day: 'numeric',
-                    }) : null;
-                    const showDate = !previous || formattedDate !== prevDate;
+                {messages.map((message, index) => {
+                  const messageDate = new Date(message.timestamp);
+                  let hours = (messageDate.getUTCHours() + 8) % 24;
+                  const minutes = messageDate.getUTCMinutes();
+                  const ampm = hours >= 12 ? 'PM' : 'AM';
+                  hours = hours % 12 || 12;
+                  const formattedTime = `${hours}:${minutes < 10 ? '0' : ''}${minutes} ${ampm}`;
+                  const formattedDate = messageDate.toLocaleDateString('en-US', {
+                    weekday: 'long', year: 'numeric', month: 'short', day: 'numeric',
+                  });
+                  const prev = messages[index - 1];
+                  const showDate = !prev || new Date(prev.timestamp).toLocaleDateString() !== messageDate.toLocaleDateString();
 
-                    return (
-                      <React.Fragment key={index}>
-                        {showDate && (
-                          <Typography
-                            variant="body2"
-                            sx={{ textAlign: 'center', m: '10px 0', fontWeight: 'bold', color: 'grey' }}
-                          >
-                            {formattedDate}
+                  return (
+                    <React.Fragment key={index}>
+                      {showDate && (
+                        <Typography variant="body2" sx={{ textAlign: 'center', m: '10px 0', fontWeight: 'bold', color: 'grey' }}>
+                          {formattedDate}
+                        </Typography>
+                      )}
+                      <ListItem sx={{ justifyContent: message.sender === userId ? 'flex-end' : 'flex-start' }}>
+                        <Paper
+                          elevation={2}
+                          sx={{
+                            padding: 1.5,
+                            bgcolor: message.sender === userId ? 'primary.main' : 'grey.300',
+                            color: message.sender === userId ? 'primary.contrastText' : 'text.primary',
+                            borderRadius: 2,
+                            maxWidth: '60%',
+                          }}
+                        >
+                          <Typography variant="body2">{message.text}</Typography>
+                          <Typography variant="caption" sx={{ display: 'block', mt: 1, textAlign: 'right' }}>
+                            {formattedTime}
                           </Typography>
-                        )}
-                        <ListItem sx={{ justifyContent: message.sender === userId ? 'flex-end' : 'flex-start' }}>
-                          <Paper
-                            elevation={2}
-                            sx={{
-                              padding: 1.5,
-                              bgcolor: message.sender === userId ? 'primary.main' : 'grey.300',
-                              color: message.sender === userId ? 'primary.contrastText' : 'text.primary',
-                              borderRadius: 2,
-                              maxWidth: '60%',
-                            }}
-                          >
-                            <Typography variant="body2">{message.text}</Typography>
-                            <Typography variant="caption" sx={{ textAlign: 'right', display: 'block', mt: 1 }}>
-                              {formattedTime}
-                            </Typography>
-                          </Paper>
-                        </ListItem>
-                      </React.Fragment>
-                    );
-                  })
-                ) : (
-                  <Typography variant="body2" color="textSecondary">No messages yet.</Typography>
-                )}
+                        </Paper>
+                      </ListItem>
+                    </React.Fragment>
+                  );
+                })}
                 <div ref={messagesEndRef} />
               </List>
 
@@ -271,18 +265,16 @@ const Telemed = () => {
                 </Button>
               </Box>
 
-              {/* Agora Video Containers */}
               <Box display="flex" mt={3} gap={2}>
-                <Box
-                  id="local-video"
-                  sx={{ flex: 1, height: 300, backgroundColor: '#000', borderRadius: 2 }}
-                />
-                <Box
-                  id="remote-video"
-                  ref={remoteContainerRef}
-                  sx={{ flex: 1, height: 300, backgroundColor: '#000', borderRadius: 2 }}
-                />
+                <Box id="local-video" sx={{ flex: 1, height: 300, backgroundColor: '#000', borderRadius: 2 }} />
+                <Box id="remote-video" sx={{ flex: 1, height: 300, backgroundColor: '#000', borderRadius: 2 }} />
               </Box>
+
+              {isInCall && (
+                <Box mt={2} display="flex" justifyContent="center">
+                  <Button variant="contained" color="error" onClick={endCall}>End Call</Button>
+                </Box>
+              )}
             </>
           ) : (
             <Card elevation={3} sx={{ padding: 3, textAlign: 'center', borderRadius: 2 }}>
@@ -292,7 +284,6 @@ const Telemed = () => {
         </Grid>
       </Grid>
 
-      {/* Messenger-Style Fullscreen Incoming Call Modal */}
       <Dialog
         open={!!incomingCall}
         fullScreen
@@ -315,20 +306,10 @@ const Telemed = () => {
             {incomingCall} is calling...
           </Typography>
           <Box display="flex" gap={3}>
-            <Button
-              variant="contained"
-              color="error"
-              onClick={declineCall}
-              sx={{ fontSize: '1rem', px: 4 }}
-            >
+            <Button variant="contained" color="error" onClick={declineCall} sx={{ fontSize: '1rem', px: 4 }}>
               Decline
             </Button>
-            <Button
-              variant="contained"
-              color="success"
-              onClick={acceptCall}
-              sx={{ fontSize: '1rem', px: 4 }}
-            >
+            <Button variant="contained" color="success" onClick={acceptCall} sx={{ fontSize: '1rem', px: 4 }}>
               Accept
             </Button>
           </Box>
