@@ -275,9 +275,16 @@ const Telemed = () => {
       </Grid>
 
       {/* Agora Video Containers */}
-      <Box display="flex" mt={4} gap={3}>
-        <div id="local-video" style={{ flex: 1, height: 300, backgroundColor: '#000', borderRadius: 8 }} />
-        <div id="remote-video" ref={remoteContainerRef} style={{ flex: 1, height: 300, backgroundColor: '#000', borderRadius: 8 }} />
+      <Box display="flex" mt={3} gap={2}>
+        <Box
+          id="local-video"
+          sx={{ flex: 1, height: 300, backgroundColor: '#000', borderRadius: 2 }}
+        />
+        <Box
+          id="remote-video"
+          ref={remoteContainerRef}
+          sx={{ flex: 1, height: 300, backgroundColor: '#000', borderRadius: 2 }}
+        />
       </Box>
     </Container>
   );
