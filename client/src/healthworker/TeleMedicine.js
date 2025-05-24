@@ -15,6 +15,10 @@ import {
   Paper,
   Card,
   CardContent,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import VideocamIcon from '@mui/icons-material/Videocam';
@@ -114,6 +118,7 @@ const Telemed = () => {
   const acceptCall = () => {
     console.log(`Accepting call from ${incomingCall}`);
     setIncomingCall(null);
+    // You can add Agora video call initiation here
   };
 
   const declineCall = () => {
@@ -265,6 +270,19 @@ const Telemed = () => {
                   Send
                 </Button>
               </Box>
+
+              {/* Agora Video Containers */}
+              <Box display="flex" mt={3} gap={2}>
+                <Box
+                  id="local-video"
+                  sx={{ flex: 1, height: 300, backgroundColor: '#000', borderRadius: 2 }}
+                />
+                <Box
+                  id="remote-video"
+                  ref={remoteContainerRef}
+                  sx={{ flex: 1, height: 300, backgroundColor: '#000', borderRadius: 2 }}
+                />
+              </Box>
             </>
           ) : (
             <Card elevation={3} sx={{ padding: 3, textAlign: 'center', borderRadius: 2 }}>
@@ -274,18 +292,48 @@ const Telemed = () => {
         </Grid>
       </Grid>
 
-      {/* Agora Video Containers */}
-      <Box display="flex" mt={3} gap={2}>
-        <Box
-          id="local-video"
-          sx={{ flex: 1, height: 300, backgroundColor: '#000', borderRadius: 2 }}
-        />
-        <Box
-          id="remote-video"
-          ref={remoteContainerRef}
-          sx={{ flex: 1, height: 300, backgroundColor: '#000', borderRadius: 2 }}
-        />
-      </Box>
+      {/* Messenger-Style Fullscreen Incoming Call Modal */}
+      <Dialog
+        open={!!incomingCall}
+        fullScreen
+        PaperProps={{
+          sx: {
+            backgroundColor: '#0d47a1',
+            color: '#fff',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+          },
+        }}
+      >
+        <DialogTitle sx={{ fontSize: '1.5rem', textAlign: 'center' }}>
+          Incoming Video Call
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="h6" sx={{ mb: 4 }}>
+            {incomingCall} is calling...
+          </Typography>
+          <Box display="flex" gap={3}>
+            <Button
+              variant="contained"
+              color="error"
+              onClick={declineCall}
+              sx={{ fontSize: '1rem', px: 4 }}
+            >
+              Decline
+            </Button>
+            <Button
+              variant="contained"
+              color="success"
+              onClick={acceptCall}
+              sx={{ fontSize: '1rem', px: 4 }}
+            >
+              Accept
+            </Button>
+          </Box>
+        </DialogContent>
+      </Dialog>
     </Container>
   );
 };
