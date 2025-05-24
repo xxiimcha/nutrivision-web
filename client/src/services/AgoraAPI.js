@@ -1,49 +1,40 @@
-import axios from 'axios';
-import io from 'socket.io-client';
+// services/AgoraAPI.js
+import AgoraRTC from "agora-rtc-sdk-ng";
 
-const AGORA_APP_ID = process.env.REACT_APP_AGORA_APP_ID;
-const AGORA_TOKEN_URL = process.env.REACT_APP_AGORA_TOKEN_URL;
-const SOCKET_URL = process.env.REACT_APP_SOCKET_URL;
+let client = null;
+let localAudioTrack = null;
+let localVideoTrack = null;
 
-const socket = io(SOCKET_URL);
+export const initiateAgoraCall = async (appId, channelName, token, uid, localVideoId, remoteVideoId) => {
+  client = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
 
-export const initiateCall = async (receiverId, callType, senderId) => {
-  try {
-    // Step 1: Request Agora token from backend
-    const tokenResponse = await axios.get(AGORA_TOKEN_URL, {
-      params: {
-        channel: receiverId,
-        uid: senderId,
-      },
-    });
+  await client.join(appId, channelName, token, uid);
 
-    const token = tokenResponse.data.token;
-    if (!token) throw new Error('No token received');
+  localAudioTrack = await AgoraRTC.createMicrophoneAudioTrack();
+  localVideoTrack = await AgoraRTC.createCameraVideoTrack();
 
-    // Step 2: Notify via socket
-    socket.emit('call-user', {
-      callerId: senderId,
-      receiverId,
-      callType,
-      channelName: receiverId,
-    });
+  const localContainer = document.getElementById(localVideoId);
+  localVideoTrack.play(localContainer);
 
-    // Step 3: Save offer to backend (optional logging)
-    await axios.post(`${process.env.REACT_APP_API_BASE_URL}/calls/offer`, {
-      from: senderId,
-      to: receiverId,
-      callType,
-      channelName: receiverId,
-    });
+  client.publish([localAudioTrack, localVideoTrack]);
 
-    // Step 4: Open Agora call in new window
-    const lobbyUrl = `${window.location.origin}/agora-lobby?channel=${receiverId}&token=${encodeURIComponent(token)}&uid=${senderId}`;
-    window.open(lobbyUrl, '_blank', 'width=1000,height=700');
-
-  } catch (error) {
-    console.error('Agora call error:', error.message || error);
-    if (error.response) {
-      console.error('Response:', error.response.data);
+  client.on("user-published", async (user, mediaType) => {
+    await client.subscribe(user, mediaType);
+    if (mediaType === "video") {
+      const remoteContainer = document.getElementById(remoteVideoId);
+      user.videoTrack.play(remoteContainer);
     }
+    if (mediaType === "audio") {
+      user.audioTrack.play();
+    }
+  });
+};
+
+export const leaveAgoraCall = async () => {
+  if (localAudioTrack) localAudioTrack.close();
+  if (localVideoTrack) localVideoTrack.close();
+  if (client) {
+    await client.leave();
+    client.removeAllListeners();
   }
 };
