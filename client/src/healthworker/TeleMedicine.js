@@ -28,7 +28,6 @@ const Telemed = () => {
   const messagesEndRef = useRef(null);
 
   const AGORA_APP_ID = process.env.REACT_APP_AGORA_APP_ID;
-  const AGORA_TEMP_TOKEN = process.env.REACT_APP_AGORA_TEMP_TOKEN;
 
   useEffect(() => {
     socket.emit('register-user', userId);
@@ -189,27 +188,32 @@ const Telemed = () => {
                 <IconButton
                   onClick={async () => {
                     const channelName = `${userId}-${selectedUser._id}`;
-                    const token = AGORA_TEMP_TOKEN;
+                    try {
+                      const tokenRes = await axios.get(`${process.env.REACT_APP_AGORA_TOKEN_URL}?channelName=${channelName}`);
+                      const token = tokenRes.data.token;
 
-                    socket.emit('incoming-call', {
-                      callerId: userId,
-                      receiverId: selectedUser._id,
-                      channelName,
-                      token,
-                      callType: 'video',
-                      roomLink: `https://yourdomain.com/room/${channelName}` // Optional if using WebView
-                    });
+                      socket.emit('incoming-call', {
+                        callerId: userId,
+                        receiverId: selectedUser._id,
+                        channelName,
+                        token,
+                        callType: 'video',
+                        roomLink: `https://yourdomain.com/room/${channelName}`
+                      });
 
-                    setIsInCall(true);
+                      setIsInCall(true);
 
-                    await initiateAgoraCall(
-                      AGORA_APP_ID,
-                      channelName,
-                      token,
-                      userId.toString(),
-                      'local-video',
-                      'remote-video'
-                    );
+                      await initiateAgoraCall(
+                        AGORA_APP_ID,
+                        channelName,
+                        token,
+                        userId.toString(),
+                        'local-video',
+                        'remote-video'
+                      );
+                    } catch (err) {
+                      console.error('Error getting token or starting call:', err);
+                    }
                   }}
                   disabled={userStatus[selectedUser._id] !== 'online'}
                 >
