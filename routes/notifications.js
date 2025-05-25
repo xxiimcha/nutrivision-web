@@ -46,42 +46,34 @@ router.post('/', async (req, res) => {
 // ✅ Send FCM push notification using UserToken model
 router.post('/send-fcm', async (req, res) => {
   try {
-    const { receiverId, title, body, data, type } = req.body;
+    const { receiverId, title, body, data } = req.body;
 
-    // Look up FCM token from UserToken model
+    if (!receiverId || !title || !body || !data) {
+      return res.status(400).json({ error: 'Missing fields' });
+    }
+
     const userToken = await UserToken.findOne({ userId: receiverId });
     if (!userToken || !userToken.token) {
-      return res.status(404).json({ error: 'FCM token not found for user' });
+      return res.status(404).json({ error: 'No token for receiver' });
     }
 
     const message = {
       token: userToken.token,
       notification: {
         title,
-        body
+        body,
       },
       data: {
         ...data,
-        type: type || 'general'
+        type: req.body.type || 'notification',
       }
     };
 
-    // Send notification via Firebase
-    const response = await admin.messaging().send(message);
+    await admin.messaging().send(message);
+    res.status(200).json({ success: true });
 
-    // Log it in DB as well
-    const savedNotification = await new Notification({
-      userId: receiverId,
-      title,
-      body,
-      type: type || 'general',
-      data,
-      read: false
-    }).save();
-
-    res.status(200).json({ success: true, fcmId: response, savedNotification });
   } catch (error) {
-    console.error('Error sending FCM:', error);
+    console.error('🔥 Error sending FCM:', error);
     res.status(500).json({ error: 'Failed to send FCM' });
   }
 });
