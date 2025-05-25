@@ -46,7 +46,7 @@ router.post('/', async (req, res) => {
 // ✅ Send FCM push notification using UserToken model
 router.post('/send-fcm', async (req, res) => {
   try {
-    const { receiverId, title, body, data } = req.body;
+    const { receiverId, title, body, data, type } = req.body;
 
     if (!receiverId || !title || !body || !data) {
       return res.status(400).json({ error: 'Missing fields' });
@@ -54,28 +54,34 @@ router.post('/send-fcm', async (req, res) => {
 
     const userToken = await UserToken.findOne({ userId: receiverId });
     if (!userToken || !userToken.token) {
-      return res.status(404).json({ error: 'No token for receiver' });
+      return res.status(404).json({ error: 'No FCM token found for receiver' });
     }
 
     const message = {
       token: userToken.token,
       notification: {
-        title,
-        body,
+        title: String(title),
+        body: String(body),
       },
       data: {
-        ...data,
-        type: req.body.type || 'notification',
-      }
+        // ✅ Ensure all values are strings
+        channelName: String(data.channelName),
+        token: String(data.token),
+        callerId: String(data.callerId),
+        callType: String(data.callType),
+        type: String(type || 'notification'),
+      },
     };
 
-    await admin.messaging().send(message);
-    res.status(200).json({ success: true });
+    const response = await admin.messaging().send(message);
+    console.log('✅ FCM message sent:', response);
+    res.status(200).json({ success: true, response });
 
   } catch (error) {
-    console.error('🔥 Error sending FCM:', error);
-    res.status(500).json({ error: 'Failed to send FCM' });
+    console.error('🔥 Error sending FCM:', error?.errorInfo || error);
+    res.status(500).json({ error: 'Failed to send FCM', details: error?.message });
   }
 });
+
 
 module.exports = router;
