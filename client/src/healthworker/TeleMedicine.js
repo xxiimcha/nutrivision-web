@@ -23,6 +23,8 @@ const Telemed = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [userStatus, setUserStatus] = useState({});
   const [isInCall, setIsInCall] = useState(false);
+  const [incomingChannel, setIncomingChannel] = useState('');
+  const [incomingToken, setIncomingToken] = useState('');
   const messagesEndRef = useRef(null);
 
   const AGORA_APP_ID = process.env.REACT_APP_AGORA_APP_ID;
@@ -30,8 +32,11 @@ const Telemed = () => {
 
   useEffect(() => {
     socket.emit('register-user', userId);
+
     socket.on('incoming-call', (data) => {
       setIncomingCall(data.callerId);
+      setIncomingChannel(data.channelName);
+      setIncomingToken(data.token);
     });
 
     return () => {
@@ -107,8 +112,8 @@ const Telemed = () => {
     setIncomingCall(null);
     await initiateAgoraCall(
       AGORA_APP_ID,
-      `${incomingCall}-${userId}`,
-      AGORA_TEMP_TOKEN,
+      incomingChannel,
+      incomingToken,
       userId.toString(),
       'local-video',
       'remote-video'
@@ -117,6 +122,8 @@ const Telemed = () => {
 
   const declineCall = () => {
     setIncomingCall(null);
+    setIncomingChannel('');
+    setIncomingToken('');
   };
 
   const endCall = async () => {
@@ -180,14 +187,30 @@ const Telemed = () => {
                   Conversation with {selectedUser.firstName} {selectedUser.lastName}
                 </Typography>
                 <IconButton
-                  onClick={() => initiateAgoraCall(
-                    AGORA_APP_ID,
-                    `${userId}-${selectedUser._id}`,
-                    AGORA_TEMP_TOKEN,
-                    userId.toString(),
-                    'local-video',
-                    'remote-video'
-                  )}
+                  onClick={async () => {
+                    const channelName = `${userId}-${selectedUser._id}`;
+                    const token = AGORA_TEMP_TOKEN;
+
+                    socket.emit('incoming-call', {
+                      callerId: userId,
+                      receiverId: selectedUser._id,
+                      channelName,
+                      token,
+                      callType: 'video',
+                      roomLink: `https://yourdomain.com/room/${channelName}` // Optional if using WebView
+                    });
+
+                    setIsInCall(true);
+
+                    await initiateAgoraCall(
+                      AGORA_APP_ID,
+                      channelName,
+                      token,
+                      userId.toString(),
+                      'local-video',
+                      'remote-video'
+                    );
+                  }}
                   disabled={userStatus[selectedUser._id] !== 'online'}
                 >
                   <VideocamIcon />
