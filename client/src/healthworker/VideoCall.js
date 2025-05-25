@@ -1,57 +1,47 @@
-// ✅ video-call.jsx
 import React, { useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import AgoraRTC from 'agora-rtc-sdk-ng';
 
 const VideoCall = () => {
+  const [searchParams] = useSearchParams();
+  const appId = searchParams.get('appId');
+  const token = searchParams.get('token');
+  const channelName = searchParams.get('channelName');
+  const uid = searchParams.get('uid');
+
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const appId = urlParams.get('appId');
-    const channelName = urlParams.get('channelName');
-    const token = urlParams.get('token');
-    const uid = urlParams.get('uid');
+    if (!appId || !channelName || !uid) {
+      console.error('Missing required Agora params');
+      return;
+    }
 
     const client = AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' });
 
-    let localTracks = [];
-
-    async function startCall() {
+    const init = async () => {
       try {
-        await client.join(appId, channelName, token, uid);
-
-        localTracks = await AgoraRTC.createMicrophoneAndCameraTracks();
-        localTracks[1].play('local-player');
-
-        await client.publish(localTracks);
-
-        client.on('user-published', async (user, mediaType) => {
-          await client.subscribe(user, mediaType);
-          if (mediaType === 'video') {
-            user.videoTrack.play('remote-player');
-          }
-          if (mediaType === 'audio') {
-            user.audioTrack.play();
-          }
-        });
-
-        window.addEventListener('beforeunload', async () => {
-          await client.leave();
-          localTracks.forEach(track => track.stop());
-          localTracks.forEach(track => track.close());
-        });
-      } catch (error) {
-        console.error('Failed to start call:', error);
+        await client.join(appId, channelName, token || null, uid);
+        const localTrack = await AgoraRTC.createMicrophoneAndCameraTracks();
+        const playerContainer = document.createElement('div');
+        playerContainer.id = uid;
+        playerContainer.style.width = '100%';
+        playerContainer.style.height = '100%';
+        document.getElementById('video-container').append(playerContainer);
+        localTrack[1].play(playerContainer.id);
+        await client.publish(localTrack);
+        console.log('Published local tracks.');
+      } catch (err) {
+        console.error('Agora join error:', err);
       }
-    }
+    };
 
-    startCall();
-  }, []);
+    init();
 
-  return (
-    <div style={{ display: 'flex', height: '100vh', width: '100vw', background: 'black' }}>
-      <div id="local-player" style={{ flex: 1, backgroundColor: '#222' }}></div>
-      <div id="remote-player" style={{ flex: 1, backgroundColor: '#000' }}></div>
-    </div>
-  );
+    return () => {
+      client.leave();
+    };
+  }, [appId, token, channelName, uid]);
+
+  return <div id="video-container" style={{ width: '100vw', height: '100vh', backgroundColor: '#000' }} />;
 };
 
 export default VideoCall;
