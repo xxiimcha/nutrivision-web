@@ -183,8 +183,14 @@ const Telemed = () => {
                 <IconButton
                   onClick={async () => {
                     const channelName = `${userId}-${selectedUser._id}`;
+                    const uid = userId;
                     try {
-                      const tokenRes = await axios.get(`${process.env.REACT_APP_AGORA_TOKEN_URL}?channelName=${channelName}`);
+                      const tokenRes = await axios.get(`${process.env.REACT_APP_API_BASE_URL}/calls/agora-token`, {
+                        params: {
+                          channel: channelName,
+                          uid: uid,
+                        },
+                      });
                       const token = tokenRes.data.token;
 
                       socket.emit('incoming-call', {
