@@ -107,7 +107,7 @@ const Telemed = () => {
 
   const openCallWindow = (channelName, token) => {
     const callWindow = window.open(
-      `/video-call.html?appId=${AGORA_APP_ID}&channelName=${channelName}&token=${token}&uid=${userId}`,
+      `/video-call?appId=${AGORA_APP_ID}&channelName=${channelName}&token=${token}&uid=${userId}`,
       '_blank',
       'width=800,height=600'
     );
