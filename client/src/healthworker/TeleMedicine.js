@@ -1,4 +1,3 @@
-// ✅ Telemed.jsx (Full component with popup video call)
 import React, { useEffect, useState, useContext, useRef } from 'react';
 import io from 'socket.io-client';
 import {
@@ -191,8 +190,10 @@ const Telemed = () => {
                           uid: uid,
                         },
                       });
+
                       const token = tokenRes.data.token;
 
+                      // 1. Emit real-time socket event
                       socket.emit('incoming-call', {
                         callerId: userId,
                         receiverId: selectedUser._id,
@@ -201,9 +202,25 @@ const Telemed = () => {
                         callType: 'video'
                       });
 
+                      // 2. Send FCM notification to mobile
+                      await axios.post(`${process.env.REACT_APP_API_BASE_URL}/notifications/send-fcm`, {
+                        receiverId: selectedUser._id,
+                        type: 'incoming-call',
+                        title: 'Incoming Video Call',
+                        body: 'You have an incoming video call.',
+                        data: {
+                          channelName,
+                          token,
+                          callerId: userId,
+                          callType: 'video'
+                        }
+                      });
+
+                      // 3. Launch web call window
                       openCallWindow(channelName, token);
+
                     } catch (err) {
-                      console.error('Error getting token or starting call:', err);
+                      console.error('Error starting call:', err);
                     }
                   }}
                   disabled={userStatus[selectedUser._id] !== 'online'}
@@ -234,7 +251,13 @@ const Telemed = () => {
                       <ListItem sx={{ justifyContent: message.sender === userId ? 'flex-end' : 'flex-start' }}>
                         <Paper
                           elevation={2}
-                          sx={{ padding: 1.5, bgcolor: message.sender === userId ? 'primary.main' : 'grey.300', color: message.sender === userId ? 'primary.contrastText' : 'text.primary', borderRadius: 2, maxWidth: '60%' }}
+                          sx={{
+                            padding: 1.5,
+                            bgcolor: message.sender === userId ? 'primary.main' : 'grey.300',
+                            color: message.sender === userId ? 'primary.contrastText' : 'text.primary',
+                            borderRadius: 2,
+                            maxWidth: '60%',
+                          }}
                         >
                           <Typography variant="body2">{message.text}</Typography>
                           <Typography variant="caption" sx={{ display: 'block', mt: 1, textAlign: 'right' }}>{formattedTime}</Typography>
