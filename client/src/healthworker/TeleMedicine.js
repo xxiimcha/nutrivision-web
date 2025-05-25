@@ -1,3 +1,4 @@
+// ✅ Telemed.jsx (Full component with popup video call)
 import React, { useEffect, useState, useContext, useRef } from 'react';
 import io from 'socket.io-client';
 import {
@@ -8,7 +9,6 @@ import SearchIcon from '@mui/icons-material/Search';
 import VideocamIcon from '@mui/icons-material/Videocam';
 import axios from 'axios';
 import { UserContext } from '../context/UserContext';
-import { initiateAgoraCall, leaveAgoraCall } from '../services/AgoraAPI';
 
 const socket = io(process.env.REACT_APP_SOCKET_URL);
 
@@ -22,7 +22,6 @@ const Telemed = () => {
   const [incomingCall, setIncomingCall] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [userStatus, setUserStatus] = useState({});
-  const [isInCall, setIsInCall] = useState(false);
   const [incomingChannel, setIncomingChannel] = useState('');
   const [incomingToken, setIncomingToken] = useState('');
   const messagesEndRef = useRef(null);
@@ -106,28 +105,24 @@ const Telemed = () => {
     }
   }, [messages]);
 
-  const acceptCall = async () => {
-    setIsInCall(true);
-    setIncomingCall(null);
-    await initiateAgoraCall(
-      AGORA_APP_ID,
-      incomingChannel,
-      incomingToken,
-      userId.toString(),
-      'local-video',
-      'remote-video'
+  const openCallWindow = (channelName, token) => {
+    const callWindow = window.open(
+      `/video-call.html?appId=${AGORA_APP_ID}&channelName=${channelName}&token=${token}&uid=${userId}`,
+      '_blank',
+      'width=800,height=600'
     );
+    if (!callWindow) alert('Popup blocked! Please allow popups.');
+  };
+
+  const acceptCall = () => {
+    setIncomingCall(null);
+    openCallWindow(incomingChannel, incomingToken);
   };
 
   const declineCall = () => {
     setIncomingCall(null);
     setIncomingChannel('');
     setIncomingToken('');
-  };
-
-  const endCall = async () => {
-    await leaveAgoraCall();
-    setIsInCall(false);
   };
 
   return (
@@ -197,20 +192,10 @@ const Telemed = () => {
                         receiverId: selectedUser._id,
                         channelName,
                         token,
-                        callType: 'video',
-                        roomLink: `https://yourdomain.com/room/${channelName}`
+                        callType: 'video'
                       });
 
-                      setIsInCall(true);
-
-                      await initiateAgoraCall(
-                        AGORA_APP_ID,
-                        channelName,
-                        token,
-                        userId.toString(),
-                        'local-video',
-                        'remote-video'
-                      );
+                      openCallWindow(channelName, token);
                     } catch (err) {
                       console.error('Error getting token or starting call:', err);
                     }
@@ -221,15 +206,7 @@ const Telemed = () => {
                 </IconButton>
               </Box>
 
-              <List sx={{
-                height: '650px',
-                overflowY: 'auto',
-                padding: 2,
-                bgcolor: '#f5f5f5',
-                borderRadius: 3,
-                mb: 2,
-                boxShadow: 2,
-              }}>
+              <List sx={{ height: '650px', overflowY: 'auto', padding: 2, bgcolor: '#f5f5f5', borderRadius: 3, mb: 2, boxShadow: 2 }}>
                 {messages.map((message, index) => {
                   const messageDate = new Date(message.timestamp);
                   let hours = (messageDate.getUTCHours() + 8) % 24;
@@ -237,9 +214,7 @@ const Telemed = () => {
                   const ampm = hours >= 12 ? 'PM' : 'AM';
                   hours = hours % 12 || 12;
                   const formattedTime = `${hours}:${minutes < 10 ? '0' : ''}${minutes} ${ampm}`;
-                  const formattedDate = messageDate.toLocaleDateString('en-US', {
-                    weekday: 'long', year: 'numeric', month: 'short', day: 'numeric',
-                  });
+                  const formattedDate = messageDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' });
                   const prev = messages[index - 1];
                   const showDate = !prev || new Date(prev.timestamp).toLocaleDateString() !== messageDate.toLocaleDateString();
 
@@ -253,18 +228,10 @@ const Telemed = () => {
                       <ListItem sx={{ justifyContent: message.sender === userId ? 'flex-end' : 'flex-start' }}>
                         <Paper
                           elevation={2}
-                          sx={{
-                            padding: 1.5,
-                            bgcolor: message.sender === userId ? 'primary.main' : 'grey.300',
-                            color: message.sender === userId ? 'primary.contrastText' : 'text.primary',
-                            borderRadius: 2,
-                            maxWidth: '60%',
-                          }}
+                          sx={{ padding: 1.5, bgcolor: message.sender === userId ? 'primary.main' : 'grey.300', color: message.sender === userId ? 'primary.contrastText' : 'text.primary', borderRadius: 2, maxWidth: '60%' }}
                         >
                           <Typography variant="body2">{message.text}</Typography>
-                          <Typography variant="caption" sx={{ display: 'block', mt: 1, textAlign: 'right' }}>
-                            {formattedTime}
-                          </Typography>
+                          <Typography variant="caption" sx={{ display: 'block', mt: 1, textAlign: 'right' }}>{formattedTime}</Typography>
                         </Paper>
                       </ListItem>
                     </React.Fragment>
@@ -291,17 +258,6 @@ const Telemed = () => {
                   Send
                 </Button>
               </Box>
-
-              <Box display="flex" mt={3} gap={2}>
-                <Box id="local-video" sx={{ flex: 1, height: 300, backgroundColor: '#000', borderRadius: 2 }} />
-                <Box id="remote-video" sx={{ flex: 1, height: 300, backgroundColor: '#000', borderRadius: 2 }} />
-              </Box>
-
-              {isInCall && (
-                <Box mt={2} display="flex" justifyContent="center">
-                  <Button variant="contained" color="error" onClick={endCall}>End Call</Button>
-                </Box>
-              )}
             </>
           ) : (
             <Card elevation={3} sx={{ padding: 3, textAlign: 'center', borderRadius: 2 }}>
@@ -325,20 +281,12 @@ const Telemed = () => {
           },
         }}
       >
-        <DialogTitle sx={{ fontSize: '1.5rem', textAlign: 'center' }}>
-          Incoming Video Call
-        </DialogTitle>
+        <DialogTitle sx={{ fontSize: '1.5rem', textAlign: 'center' }}>Incoming Video Call</DialogTitle>
         <DialogContent>
-          <Typography variant="h6" sx={{ mb: 4 }}>
-            {incomingCall} is calling...
-          </Typography>
+          <Typography variant="h6" sx={{ mb: 4 }}>{incomingCall} is calling...</Typography>
           <Box display="flex" gap={3}>
-            <Button variant="contained" color="error" onClick={declineCall} sx={{ fontSize: '1rem', px: 4 }}>
-              Decline
-            </Button>
-            <Button variant="contained" color="success" onClick={acceptCall} sx={{ fontSize: '1rem', px: 4 }}>
-              Accept
-            </Button>
+            <Button variant="contained" color="error" onClick={declineCall} sx={{ fontSize: '1rem', px: 4 }}>Decline</Button>
+            <Button variant="contained" color="success" onClick={acceptCall} sx={{ fontSize: '1rem', px: 4 }}>Accept</Button>
           </Box>
         </DialogContent>
       </Dialog>
