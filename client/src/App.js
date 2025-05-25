@@ -52,11 +52,13 @@ function AppRoutes() {
       <Route path="/login" element={<Login />} />
       <Route path="/reset-password" element={<ResetPassword />} />
 
+      {/* ✅ Global video call route must be outside nested /dashboard */}
+      <Route path="/video-call" element={<VideoCall />} />
+
       <Route path="/dashboard/*" element={<DashboardLayout />}>
         <Route index element={<Dashboard />} />
         <Route path="profile/:userId" element={<Profile />} />
 
-        {/* Admin and Super Admin routes */}
         {(role === 'Admin' || role === 'Super Admin') && (
           <>
             <Route path="plans" element={<Plans />} />
@@ -65,11 +67,10 @@ function AppRoutes() {
             <Route path="admin" element={<Admin />} />
             <Route path="status" element={<Status />} />
             <Route path="records" element={<Records />} />
-            <Route path="activity-log" element={<ActivityLog />} /> {/* Activity Log Route */}
+            <Route path="activity-log" element={<ActivityLog />} />
           </>
         )}
 
-        {/* Nutritionist routes */}
         {role === 'Nutritionist' && (
           <>
             <Route path="dashboard" element={<NutritionistDashboard />} />
@@ -78,13 +79,11 @@ function AppRoutes() {
             <Route path="food-management" element={<FoodManagement />} />
             <Route path="meal-plan/:id/:week" element={<MealPlan />} />
             <Route path="meal-plan/:id/:week/:day" element={<MealPlanPerDay />} />
-
             <Route path="records-management" element={<RecordsManagement />} />
             <Route path="monitoring" element={<Monitoring />} />
           </>
         )}
 
-        {/* Health Worker routes */}
         {role === 'Health Worker' && (
           <>
             <Route path="dashboard" element={<HealthWorkerDashboard />} />
@@ -96,13 +95,13 @@ function AppRoutes() {
             <Route path="meal-plan/:id/:week" element={<PatientMealPlan />} />
             <Route path="monitoring" element={<Monitoring />} />
             <Route path="food-management" element={<PatientFoodManagement />} />
-            <Route path="/video-call" element={<VideoCall />} />
           </>
         )}
       </Route>
     </Routes>
   );
 }
+
 
 function App() {
   return (
