@@ -28,7 +28,10 @@ const logAction = require('./utils/logAction');
 
 const app = express();
 const PORT = process.env.PORT || 5003;
-const allowedOrigins = [process.env.FRONTEND_URL || 'http://localhost:3000'];
+const allowedOrigins = [
+  'https://nutrivision-orcin.vercel.app',
+  'http://localhost:3000'
+];
 
 app.use(bodyParser.json());
 app.use(cors({
