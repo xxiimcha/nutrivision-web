@@ -183,26 +183,23 @@ const Telemed = () => {
                   onClick={async () => {
                     const channelName = `${userId}-${selectedUser._id}`;
                     const uid = userId;
+
                     try {
                       const tokenRes = await axios.get(`${process.env.REACT_APP_API_BASE_URL}/calls/agora-token`, {
-                        params: {
-                          channel: channelName,
-                          uid: uid,
-                        },
+                        params: { channel: channelName, uid },
                       });
 
                       const token = tokenRes.data.token;
 
-                      // 1. Emit real-time socket event
-                      socket.emit('incoming-call', {
+                      // ✅ 1. Insert call signal into DB
+                      await axios.post(`${process.env.REACT_APP_API_BASE_URL}/calls/signal`, {
                         callerId: userId,
                         receiverId: selectedUser._id,
-                        channelName,
-                        token,
-                        callType: 'video'
+                        callType: 'video',
+                        roomLink: channelName,
                       });
 
-                      // 2. Send FCM notification to mobile
+                      // ✅ 2. Send FCM notification
                       await axios.post(`${process.env.REACT_APP_API_BASE_URL}/notifications/send-fcm`, {
                         receiverId: selectedUser._id,
                         type: 'incoming-call',
@@ -212,11 +209,11 @@ const Telemed = () => {
                           channelName,
                           token,
                           callerId: userId,
-                          callType: 'video'
-                        }
+                          callType: 'video',
+                        },
                       });
 
-                      // 3. Launch web call window
+                      // ✅ 3. Open web call window
                       openCallWindow(channelName, token);
 
                     } catch (err) {

@@ -61,4 +61,17 @@ router.get('/agora-token', (req, res) => {
   }
 });
 
+// routes/calls.js
+router.post('/signal', async (req, res) => {
+  try {
+    const { callerId, receiverId, callType, roomLink } = req.body;
+    const call = new CallSignal({ callerId, receiverId, callType, roomLink });
+    await call.save();
+    res.status(201).json({ success: true, call });
+  } catch (error) {
+    console.error('Error saving call signal:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 module.exports = router;
