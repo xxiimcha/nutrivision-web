@@ -43,20 +43,24 @@ router.post('/', async (req, res) => {
   }
 });
 
-// ✅ Send FCM push notification using UserToken model
 router.post('/send-fcm', async (req, res) => {
   try {
     const { receiverId, title, body, data, type } = req.body;
 
-    if (!receiverId || !title || !body || !data) {
-      return res.status(400).json({ error: 'Missing fields' });
+    // Basic field validation
+    if (!receiverId || !title || !body || !data || !data.channelName) {
+      return res.status(400).json({
+        error: 'Missing required fields: receiverId, title, body, or data.channelName',
+      });
     }
 
+    // Retrieve receiver's FCM token
     const userToken = await UserToken.findOne({ userId: receiverId });
     if (!userToken || !userToken.token) {
       return res.status(404).json({ error: 'No FCM token found for receiver' });
     }
 
+    // Construct message
     const message = {
       token: userToken.token,
       notification: {
@@ -64,17 +68,22 @@ router.post('/send-fcm', async (req, res) => {
         body: String(body),
       },
       data: {
-        // ✅ Ensure all values are strings
-        channelName: String(data.channelName),
-        token: String(data.token),
-        callerId: String(data.callerId),
-        callType: String(data.callType),
+        // Convert undefined fields to empty strings to prevent crash
+        channelName: String(data.channelName || ''),
+        token: String(data.token || ''),
+        callerId: String(data.callerId || ''),
+        callType: String(data.callType || ''),
         type: String(type || 'notification'),
       },
     };
 
+    console.log('📨 Sending FCM message to:', userToken.token);
+    console.log('Payload:', message);
+
+    // Send message via Firebase Admin SDK
     const response = await admin.messaging().send(message);
-    console.log('✅ FCM message sent:', response);
+    console.log('✅ FCM message sent successfully:', response);
+
     res.status(200).json({ success: true, response });
 
   } catch (error) {
@@ -82,6 +91,5 @@ router.post('/send-fcm', async (req, res) => {
     res.status(500).json({ error: 'Failed to send FCM', details: error?.message });
   }
 });
-
 
 module.exports = router;
