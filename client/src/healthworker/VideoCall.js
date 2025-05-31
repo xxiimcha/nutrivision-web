@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import AgoraRTC from 'agora-rtc-sdk-ng';
 
@@ -9,39 +9,85 @@ const VideoCall = () => {
   const channelName = searchParams.get('channelName');
   const uid = searchParams.get('uid');
 
+  const [client] = useState(() => AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' }));
+  const [localTracks, setLocalTracks] = useState([]);
+
   useEffect(() => {
     if (!appId || !channelName || !uid) {
-      console.error('Missing required Agora params');
+      console.error('Missing required Agora parameters');
       return;
     }
 
-    const client = AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' });
-
     const init = async () => {
       try {
+        // Join the channel
         await client.join(appId, channelName, token || null, uid);
-        const localTrack = await AgoraRTC.createMicrophoneAndCameraTracks();
+
+        // Create microphone and camera tracks
+        const [microphoneTrack, cameraTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
+        setLocalTracks([microphoneTrack, cameraTrack]);
+
+        // Create player container for local video
         const playerContainer = document.createElement('div');
-        playerContainer.id = uid;
+        playerContainer.id = `player-${uid}`;
         playerContainer.style.width = '100%';
         playerContainer.style.height = '100%';
-        document.getElementById('video-container').append(playerContainer);
-        localTrack[1].play(playerContainer.id);
-        await client.publish(localTrack);
-        console.log('Published local tracks.');
-      } catch (err) {
-        console.error('Agora join error:', err);
+
+        const container = document.getElementById('video-container');
+        if (container) container.appendChild(playerContainer);
+
+        // Play local video
+        cameraTrack.play(playerContainer.id);
+
+        // Publish local tracks
+        await client.publish([microphoneTrack, cameraTrack]);
+        console.log('Local tracks published.');
+      } catch (error) {
+        console.error('Error joining Agora channel:', error);
       }
     };
 
     init();
 
     return () => {
-      client.leave();
+      const cleanup = async () => {
+        localTracks.forEach(track => track.stop() && track.close());
+        await client.leave();
+        console.log('Left Agora channel and cleaned up.');
+      };
+      cleanup();
     };
-  }, [appId, token, channelName, uid]);
+  }, [appId, token, channelName, uid, client]);
 
-  return <div id="video-container" style={{ width: '100vw', height: '100vh', backgroundColor: '#000' }} />;
+  const handleLeaveCall = async () => {
+    localTracks.forEach(track => track.stop() && track.close());
+    await client.leave();
+    window.location.href = '/'; // Redirect to home or another page
+  };
+
+  return (
+    <div style={{ width: '100vw', height: '100vh', backgroundColor: '#000', position: 'relative' }}>
+      <div id="video-container" style={{ width: '100%', height: '100%' }}></div>
+      <button
+        onClick={handleLeaveCall}
+        style={{
+          position: 'absolute',
+          bottom: 20,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          padding: '10px 20px',
+          backgroundColor: '#ff4d4f',
+          color: '#fff',
+          border: 'none',
+          borderRadius: '6px',
+          cursor: 'pointer',
+          zIndex: 1000
+        }}
+      >
+        Leave Call
+      </button>
+    </div>
+  );
 };
 
 export default VideoCall;
