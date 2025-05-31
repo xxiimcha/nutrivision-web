@@ -69,7 +69,7 @@ const VideoCall = () => {
     // 🆕 Call API to update call status
     if (signalId) {
       try {
-        await fetch(`/api/calls/${signalId}`, {
+        await fetch(`/api/calls/signals/${signalId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ status: 'ended' }),
