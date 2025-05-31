@@ -1,8 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import AgoraRTC from 'agora-rtc-sdk-ng';
-
-// ✅ MUI icons
 import MicIcon from '@mui/icons-material/Mic';
 import MicOffIcon from '@mui/icons-material/MicOff';
 import VideocamIcon from '@mui/icons-material/Videocam';
@@ -15,6 +13,7 @@ const VideoCall = () => {
   const token = searchParams.get('token');
   const channelName = searchParams.get('channelName');
   const uid = searchParams.get('uid');
+  const signalId = searchParams.get('signalId'); // 🆕 for updating call status
 
   const [client] = useState(() => AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' }));
   const [localTracks, setLocalTracks] = useState([]);
@@ -63,9 +62,26 @@ const VideoCall = () => {
   }, [appId, token, channelName, uid, client]);
 
   const handleLeaveCall = async () => {
+    // Stop and close local tracks
     localTracks.forEach(track => track.stop() && track.close());
     await client.leave();
-    window.location.href = '/';
+
+    // 🆕 Call API to update call status
+    if (signalId) {
+      try {
+        await fetch(`/api/calls/${signalId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'ended' }),
+        });
+        console.log('Call status updated to "ended".');
+      } catch (err) {
+        console.error('Failed to update call status:', err);
+      }
+    }
+
+    // 🆕 Close the window
+    window.close(); // works for popup windows
   };
 
   const toggleMic = async () => {
