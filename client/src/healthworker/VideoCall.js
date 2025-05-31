@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import AgoraRTC from 'agora-rtc-sdk-ng';
+import { FaMicrophone, FaMicrophoneSlash, FaVideo, FaVideoSlash, FaPhoneSlash } from 'react-icons/fa';
 
 const VideoCall = () => {
   const [searchParams] = useSearchParams();
@@ -86,42 +87,38 @@ const VideoCall = () => {
         left: '50%',
         transform: 'translateX(-50%)',
         display: 'flex',
-        gap: '12px',
+        gap: '20px',
         zIndex: 1000
       }}>
-        <button
-          onClick={toggleMic}
-          style={buttonStyle(isMicMuted ? '#ffc107' : '#1890ff')}
-        >
-          {isMicMuted ? 'Unmute Mic' : 'Mute Mic'}
+        <button onClick={toggleMic} style={buttonIconStyle(isMicMuted ? '#ffc107' : '#1890ff')} title={isMicMuted ? 'Unmute Mic' : 'Mute Mic'}>
+          {isMicMuted ? <FaMicrophoneSlash size={22} /> : <FaMicrophone size={22} />}
         </button>
 
-        <button
-          onClick={toggleCamera}
-          style={buttonStyle(isCameraOff ? '#ffc107' : '#1890ff')}
-        >
-          {isCameraOff ? 'Turn On Camera' : 'Turn Off Camera'}
+        <button onClick={toggleCamera} style={buttonIconStyle(isCameraOff ? '#ffc107' : '#1890ff')} title={isCameraOff ? 'Turn On Camera' : 'Turn Off Camera'}>
+          {isCameraOff ? <FaVideoSlash size={22} /> : <FaVideo size={22} />}
         </button>
 
-        <button
-          onClick={handleLeaveCall}
-          style={buttonStyle('#ff4d4f')}
-        >
-          Leave Call
+        <button onClick={handleLeaveCall} style={buttonIconStyle('#ff4d4f')} title="Leave Call">
+          <FaPhoneSlash size={22} />
         </button>
       </div>
     </div>
   );
 };
 
-const buttonStyle = (bgColor) => ({
-  padding: '10px 20px',
+const buttonIconStyle = (bgColor) => ({
+  padding: '12px',
   backgroundColor: bgColor,
   color: '#fff',
   border: 'none',
-  borderRadius: '6px',
+  borderRadius: '50%',
   cursor: 'pointer',
-  minWidth: '120px'
+  width: '50px',
+  height: '50px',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  boxShadow: '0 2px 10px rgba(0,0,0,0.3)'
 });
 
 export default VideoCall;
