@@ -2,9 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import AgoraRTC from 'agora-rtc-sdk-ng';
 
-// ✅ Updated icon imports for react-icons v5.5+
-import { FaVideo, FaVideoSlash, FaMicrophone, FaMicrophoneSlash, FaPhoneSlash } from 'react-icons/fa';
-
+// ✅ MUI icons
+import MicIcon from '@mui/icons-material/Mic';
+import MicOffIcon from '@mui/icons-material/MicOff';
+import VideocamIcon from '@mui/icons-material/Videocam';
+import VideocamOffIcon from '@mui/icons-material/VideocamOff';
+import CallEndIcon from '@mui/icons-material/CallEnd';
 
 const VideoCall = () => {
   const [searchParams] = useSearchParams();
@@ -92,16 +95,16 @@ const VideoCall = () => {
         gap: '20px',
         zIndex: 1000
       }}>
-        <button onClick={toggleMic} style={buttonIconStyle(isMicMuted ? '#ffc107' : '#1890ff')} title={isMicMuted ? 'Unmute Mic' : 'Mute Mic'}>
-          {isMicMuted ? <FaMicrophoneSlash size={22} /> : <FaMicrophone size={22} />}
+        <button onClick={toggleMic} style={buttonIconStyle(isMicMuted ? '#ffc107' : '#1976d2')} title={isMicMuted ? 'Unmute Mic' : 'Mute Mic'}>
+          {isMicMuted ? <MicOffIcon fontSize="medium" /> : <MicIcon fontSize="medium" />}
         </button>
 
-        <button onClick={toggleCamera} style={buttonIconStyle(isCameraOff ? '#ffc107' : '#1890ff')} title={isCameraOff ? 'Turn On Camera' : 'Turn Off Camera'}>
-          {isCameraOff ? <FaVideoSlash size={22} /> : <FaVideo size={22} />}
+        <button onClick={toggleCamera} style={buttonIconStyle(isCameraOff ? '#ffc107' : '#1976d2')} title={isCameraOff ? 'Turn On Camera' : 'Turn Off Camera'}>
+          {isCameraOff ? <VideocamOffIcon fontSize="medium" /> : <VideocamIcon fontSize="medium" />}
         </button>
 
-        <button onClick={handleLeaveCall} style={buttonIconStyle('#ff4d4f')} title="Leave Call">
-          <FaPhoneSlash size={22} />
+        <button onClick={handleLeaveCall} style={buttonIconStyle('#d32f2f')} title="Leave Call">
+          <CallEndIcon fontSize="medium" />
         </button>
       </div>
     </div>
