@@ -82,21 +82,32 @@ router.put('/signal/:id', async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
 
-    const call = await CallSignal.findByIdAndUpdate(
-      id,
-      { status, updatedAt: new Date() },
-      { new: true }
-    );
+    const call = await CallSignal.findById(id);
 
     if (!call) {
       return res.status(404).json({ error: 'Call signal not found' });
     }
 
+    // Update fields based on status
+    if (status === 'ended') {
+      const endedAt = new Date();
+      const startedAt = call.startedAt || endedAt;
+      const callDuration = Math.floor((endedAt - startedAt) / 1000); // in seconds
+
+      call.status = 'ended';
+      call.endedAt = endedAt;
+      call.callDuration = callDuration;
+    } else {
+      call.status = status;
+    }
+
+    await call.save();
     res.status(200).json({ success: true, message: 'Call status updated', call });
   } catch (error) {
-    console.error('Error updating call status:', error);
+    console.error('Error updating call signal:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
+
 
 module.exports = router;
