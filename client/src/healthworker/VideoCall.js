@@ -1,7 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import AgoraRTC from 'agora-rtc-sdk-ng';
-import { FaMicrophone, FaMicrophoneSlash, FaVideo, FaVideoSlash, FaPhoneSlash } from 'react-icons/fa';
+
+// ✅ Updated icon imports for react-icons v5.5+
+import {
+  FaMicrophone,
+  FaMicrophoneSlash,
+  FaVideo,
+  FaVideoSlash,
+  FaPhoneSlash
+} from 'react-icons/fa6';
 
 const VideoCall = () => {
   const [searchParams] = useSearchParams();
@@ -24,7 +32,6 @@ const VideoCall = () => {
     const init = async () => {
       try {
         await client.join(appId, channelName, token || null, uid);
-
         const [microphoneTrack, cameraTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
         setLocalTracks([microphoneTrack, cameraTrack]);
 
