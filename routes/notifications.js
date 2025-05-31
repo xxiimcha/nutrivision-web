@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Notification = require('../models/Notification');
-const UserToken = require('../models/UserToken'); // NEW: Import token model
+const UserToken = require('../models/UserToken');
 const admin = require('firebase-admin');
 
 // Get notifications for a specific user
@@ -31,7 +31,7 @@ router.put('/:notificationId/read', async (req, res) => {
   }
 });
 
-// Create a new notification (for DB storage only)
+// Create a new notification (DB only)
 router.post('/', async (req, res) => {
   try {
     const newNotification = new Notification(req.body);
@@ -43,24 +43,26 @@ router.post('/', async (req, res) => {
   }
 });
 
+// Send FCM Push Notification
 router.post('/send-fcm', async (req, res) => {
   try {
-    const { receiverId, title, body, data, type } = req.body;
+    const { receiverId, title, body, data = {}, type } = req.body;
 
-    // Basic field validation
-    if (!receiverId || !title || !body || !data || !data.channelName) {
+    // Validate required fields
+    if (!receiverId || !title || !body || !data.channelName) {
       return res.status(400).json({
         error: 'Missing required fields: receiverId, title, body, or data.channelName',
       });
     }
 
-    // Retrieve receiver's FCM token
+    // Retrieve FCM token for the receiver
     const userToken = await UserToken.findOne({ userId: receiverId });
     if (!userToken || !userToken.token) {
+      console.log('❌ No FCM token found for userId:', receiverId);
       return res.status(404).json({ error: 'No FCM token found for receiver' });
     }
 
-    // Construct message
+    // Construct the FCM message payload
     const message = {
       token: userToken.token,
       notification: {
@@ -68,7 +70,6 @@ router.post('/send-fcm', async (req, res) => {
         body: String(body),
       },
       data: {
-        // Convert undefined fields to empty strings to prevent crash
         channelName: String(data.channelName || ''),
         token: String(data.token || ''),
         callerId: String(data.callerId || ''),
@@ -80,7 +81,7 @@ router.post('/send-fcm', async (req, res) => {
     console.log('📨 Sending FCM message to:', userToken.token);
     console.log('Payload:', message);
 
-    // Send message via Firebase Admin SDK
+    // Send FCM
     const response = await admin.messaging().send(message);
     console.log('✅ FCM message sent successfully:', response);
 
