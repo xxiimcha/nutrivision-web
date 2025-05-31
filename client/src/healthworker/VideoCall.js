@@ -3,13 +3,8 @@ import { useSearchParams } from 'react-router-dom';
 import AgoraRTC from 'agora-rtc-sdk-ng';
 
 // ✅ Updated icon imports for react-icons v5.5+
-import {
-  FaMicrophone,
-  FaMicrophoneSlash,
-  FaVideo,
-  FaVideoSlash,
-  FaPhoneSlash
-} from 'react-icons/fa6';
+import { FaVideo, FaVideoSlash, FaMicrophone, FaMicrophoneSlash, FaPhoneSlash } from 'react-icons/fa';
+
 
 const VideoCall = () => {
   const [searchParams] = useSearchParams();
