@@ -71,7 +71,7 @@ router.post('/send-fcm', async (req, res) => {
       },
       data: {
         channelName: String(data.channelName || ''),
-        token: String(data.token || ''),
+        agoraToken: String(data.token || ''),   // ✅ Rename to avoid conflict
         callerId: String(data.callerId || ''),
         callType: String(data.callType || ''),
         type: String(type || 'notification'),
