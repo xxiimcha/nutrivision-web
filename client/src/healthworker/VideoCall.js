@@ -26,8 +26,20 @@ const VideoCall = () => {
       return;
     }
 
+    const requestPermissions = async () => {
+      try {
+        await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      } catch (err) {
+        console.error('Permission denied:', err);
+        alert('Please allow microphone and camera access to proceed.');
+        throw err;
+      }
+    };
+
     const init = async () => {
       try {
+        await requestPermissions(); // 🔐 Ask for mic/cam permission
+
         await client.join(appId, channelName, token || null, uid);
         const [microphoneTrack, cameraTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
         setLocalTracks([microphoneTrack, cameraTrack]);
@@ -45,7 +57,6 @@ const VideoCall = () => {
         console.log('Local tracks published.');
       } catch (error) {
         console.error('Error joining Agora channel:', error);
-        alert('Failed to access camera/mic. Please check permissions.');
       }
     };
 
@@ -62,11 +73,9 @@ const VideoCall = () => {
   }, [appId, token, channelName, uid, client]);
 
   const handleLeaveCall = async () => {
-    // Stop and close local tracks
     localTracks.forEach(track => track.stop() && track.close());
     await client.leave();
 
-    // 🆕 Call API to update call status
     if (signalId) {
       try {
         await fetch(`/api/calls/signal/${signalId}`, {
@@ -80,8 +89,7 @@ const VideoCall = () => {
       }
     }
 
-    // 🆕 Close the window
-    window.close(); // works for popup windows
+    window.close(); // Close popup window
   };
 
   const toggleMic = async () => {
