@@ -10,10 +10,11 @@ import CallEndIcon from '@mui/icons-material/CallEnd';
 const VideoCall = () => {
   const [searchParams] = useSearchParams();
   const appId = searchParams.get('appId');
-  const token = searchParams.get('token');
+  const rawToken = searchParams.get('token');
+  const token = rawToken ? decodeURIComponent(rawToken) : null;
   const channelName = searchParams.get('channelName');
-  const uid = searchParams.get('uid');
-  const signalId = searchParams.get('signalId'); // 🆕 for updating call status
+  const uid = searchParams.get('uid') || null;
+  const signalId = searchParams.get('signalId');
 
   const [client] = useState(() => AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' }));
   const [localTracks, setLocalTracks] = useState([]);
@@ -21,8 +22,8 @@ const VideoCall = () => {
   const [isCameraOff, setIsCameraOff] = useState(false);
 
   useEffect(() => {
-    if (!appId || !channelName || !uid) {
-      console.error('Missing required Agora parameters');
+    if (!appId || !channelName) {
+      alert('Missing required Agora parameters.');
       return;
     }
 
@@ -30,33 +31,35 @@ const VideoCall = () => {
       try {
         await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
       } catch (err) {
-        console.error('Permission denied:', err);
-        alert('Please allow microphone and camera access to proceed.');
+        alert('Please allow microphone and camera access to continue.');
         throw err;
       }
     };
 
     const init = async () => {
       try {
-        await requestPermissions(); // 🔐 Ask for mic/cam permission
+        await requestPermissions();
 
-        await client.join(appId, channelName, token || null, uid);
+        console.log('Joining Agora channel with:', { appId, channelName, uid, token });
+
+        await client.join(appId, channelName, token, uid);
+
         const [microphoneTrack, cameraTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
         setLocalTracks([microphoneTrack, cameraTrack]);
 
+        const container = document.getElementById('video-container');
         const playerContainer = document.createElement('div');
-        playerContainer.id = `player-${uid}`;
         playerContainer.style.width = '100%';
         playerContainer.style.height = '100%';
+        container.appendChild(playerContainer);
 
-        const container = document.getElementById('video-container');
-        if (container) container.appendChild(playerContainer);
-
-        cameraTrack.play(playerContainer.id);
+        cameraTrack.play(playerContainer);
         await client.publish([microphoneTrack, cameraTrack]);
+
         console.log('Local tracks published.');
-      } catch (error) {
-        console.error('Error joining Agora channel:', error);
+      } catch (err) {
+        console.error('Error joining Agora channel:', err);
+        alert('Failed to join video call: ' + err.message);
       }
     };
 
@@ -64,16 +67,22 @@ const VideoCall = () => {
 
     return () => {
       const cleanup = async () => {
-        localTracks.forEach(track => track.stop() && track.close());
+        localTracks.forEach(track => {
+          track.stop();
+          track.close();
+        });
         await client.leave();
-        console.log('Left Agora channel and cleaned up.');
+        console.log('Call ended and tracks cleaned up.');
       };
       cleanup();
     };
   }, [appId, token, channelName, uid, client]);
 
   const handleLeaveCall = async () => {
-    localTracks.forEach(track => track.stop() && track.close());
+    localTracks.forEach(track => {
+      track.stop();
+      track.close();
+    });
     await client.leave();
 
     if (signalId) {
@@ -83,13 +92,12 @@ const VideoCall = () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ status: 'ended' }),
         });
-        console.log('Call status updated to "ended".');
       } catch (err) {
-        console.error('Failed to update call status:', err);
+        console.error('Failed to update call signal:', err);
       }
     }
 
-    window.close(); // Close popup window
+    window.close(); // close popup
   };
 
   const toggleMic = async () => {
