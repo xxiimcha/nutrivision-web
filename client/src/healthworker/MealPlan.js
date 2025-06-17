@@ -176,20 +176,32 @@ const MealPlan = () => {
             top: '50%',
             left: '50%',
             transform: 'translate(-50%, -50%)',
-            width: 500,
+            width: '90%',
+            maxWidth: 500,
+            maxHeight: '90vh',
+            overflowY: 'auto',
             bgcolor: 'background.paper',
             border: '2px solid #000',
             boxShadow: 24,
             p: 4,
             borderRadius: 2,
+            zIndex: 1500, // ADD THIS
           }}
         >
-          {selectedPhoto && <img src={selectedPhoto} alt="Proof of Meal" style={{ width: '100%' }} />}
+          {selectedPhoto && (
+            <img
+              src={selectedPhoto}
+              alt="Proof of Meal"
+              style={{ width: '100%', borderRadius: 10 }}
+              onError={() => console.warn('Image failed to load')}
+            />
+          )}
           <Button onClick={handleCloseModal} variant="contained" color="primary" sx={{ mt: 2 }}>
             Close
           </Button>
         </Box>
       </Modal>
+
     </Container>
   );
 };
