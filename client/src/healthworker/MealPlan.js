@@ -11,7 +11,12 @@ import {
   AccordionDetails,
   Modal,
 } from '@mui/material';
-import { ExpandMore, CheckCircle, ArrowBackIos, ArrowForwardIos } from '@mui/icons-material';
+import {
+  ExpandMore,
+  CheckCircle,
+  ArrowBackIos,
+  ArrowForwardIos,
+} from '@mui/icons-material';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import moment from 'moment';
@@ -22,8 +27,8 @@ const MealPlan = () => {
   const { id, week } = useParams();
   const [mealPlan, setMealPlan] = useState({});
   const [patientInfo, setPatientInfo] = useState({ patientName: 'N/A', height: 'N/A', weight: 'N/A' });
-  const [openModal, setOpenModal] = useState(false); // Modal state for the proof of meal photo
-  const [selectedPhoto, setSelectedPhoto] = useState(null); // State to store the selected photo
+  const [openModal, setOpenModal] = useState(false);
+  const [selectedPhoto, setSelectedPhoto] = useState(null);
   const navigate = useNavigate();
 
   const startOfWeek = moment(week).startOf('week').format('YYYY-MM-DD');
@@ -37,7 +42,6 @@ const MealPlan = () => {
             axios.get(`${API_BASE_URL}/meal-plans/${id}/${week}`),
             axios.get(`${API_BASE_URL}/patient-records/${id}`),
           ]);
-
           setMealPlan(mealPlanResponse.data);
           setPatientInfo(patientResponse.data);
         }
@@ -51,11 +55,7 @@ const MealPlan = () => {
 
   const handleWeekChange = (direction) => {
     let newWeek = moment(week);
-    if (direction === 'next') {
-      newWeek = newWeek.add(1, 'week');
-    } else {
-      newWeek = newWeek.subtract(1, 'week');
-    }
+    newWeek = direction === 'next' ? newWeek.add(1, 'week') : newWeek.subtract(1, 'week');
     navigate(`/dashboard/meal-plan/${id}/${newWeek.format('YYYY-MM-DD')}`);
   };
 
@@ -74,6 +74,7 @@ const MealPlan = () => {
       <Typography variant="h4" gutterBottom sx={{ color: '#1565C0', fontWeight: 'bold' }}>
         Meal Plan
       </Typography>
+
       <Box mb={4}>
         <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#1565C0' }}>
           Child's Name: {patientInfo.name}
@@ -127,20 +128,17 @@ const MealPlan = () => {
                           <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: '#1565C0' }}>
                             {mealType.charAt(0).toUpperCase() + mealType.slice(1)}
                           </Typography>
+                          <Typography variant="body2"><strong>Main dish:</strong> {mealPlan[day][mealType]?.mainDish || 'No meal planned'}</Typography>
+                          <Typography variant="body2"><strong>Drinks:</strong> {mealPlan[day][mealType]?.drinks || 'No meal planned'}</Typography>
+                          <Typography variant="body2"><strong>Vitamins:</strong> {mealPlan[day][mealType]?.vitamins || 'No vitamins listed'}</Typography>
                           <Typography variant="body2">
-                            <strong>Main dish:</strong> {mealPlan[day]?.[mealType]?.mainDish || 'No meal planned'}
-                          </Typography>
-                          <Typography variant="body2">
-                            <strong>Drinks:</strong> {mealPlan[day]?.[mealType]?.drinks || 'No meal planned'}
-                          </Typography>
-                          <Typography variant="body2">
-                            <strong>Vitamins:</strong> {mealPlan[day]?.[mealType]?.vitamins || 'No vitamins listed'}
-                          </Typography>
-                          <Typography variant="body2">
-                            <strong>Ingredients:</strong> {Array.isArray(mealPlan[day]?.[mealType]?.ingredients) ? mealPlan[day]?.[mealType]?.ingredients.join(', ') : 'No ingredients listed'}
+                            <strong>Ingredients:</strong>{' '}
+                            {Array.isArray(mealPlan[day][mealType]?.ingredients)
+                              ? mealPlan[day][mealType].ingredients.join(', ')
+                              : 'No ingredients listed'}
                           </Typography>
 
-                          {mealPlan[day]?.[mealType]?.photo && (
+                          {mealPlan[day][mealType]?.photo && (
                             <Button
                               variant="contained"
                               sx={{ mt: 1, backgroundColor: '#1565C0' }}
@@ -168,45 +166,44 @@ const MealPlan = () => {
         ))}
       </Grid>
 
-      {/* Modal for viewing the proof of meal photo */}
-<Modal open={openModal} onClose={handleCloseModal}>
-  <Box
-    sx={{
-      position: 'absolute',
-      top: '50%',
-      left: '50%',
-      transform: 'translate(-50%, -50%)',
-      width: '90%',
-      maxWidth: 500,
-      maxHeight: '90vh',
-      overflowY: 'auto',
-      bgcolor: 'background.paper',
-      border: '2px solid #000',
-      boxShadow: 24,
-      p: 4,
-      borderRadius: 2,
-      zIndex: 1300, // 🔥 Ensure it's above other elements
-    }}
-  >
-    <img
-      src={selectedPhoto || 'https://via.placeholder.com/500x300?text=Image+Not+Found'}
-      alt="Proof of Meal"
-      style={{ width: '100%', borderRadius: 10 }}
-      onError={() => console.warn('Image failed to load')}
-    />
+      {/* Modal for viewing proof of meal */}
+      <Modal open={openModal} onClose={handleCloseModal}>
+        <Box
+          sx={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: '90%',
+            maxWidth: 500,
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            bgcolor: 'background.paper',
+            border: '2px solid #000',
+            boxShadow: 24,
+            p: 4,
+            borderRadius: 2,
+            zIndex: 2000,
+          }}
+        >
+          <img
+            src={selectedPhoto || 'https://via.placeholder.com/500x300?text=Image+Not+Found'}
+            alt="Proof of Meal"
+            style={{ width: '100%', maxHeight: '60vh', objectFit: 'contain', borderRadius: 10 }}
+            onError={() => console.warn('Image failed to load')}
+          />
 
-    <Button
-      onClick={handleCloseModal}
-      variant="contained"
-      color="primary"
-      sx={{ mt: 2 }}
-      fullWidth
-    >
-      Close
-    </Button>
-  </Box>
-</Modal>
-
+          <Button
+            onClick={handleCloseModal}
+            variant="contained"
+            color="primary"
+            sx={{ mt: 2 }}
+            fullWidth
+          >
+            Close
+          </Button>
+        </Box>
+      </Modal>
     </Container>
   );
 };
