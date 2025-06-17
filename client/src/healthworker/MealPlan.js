@@ -167,43 +167,49 @@ const MealPlan = () => {
       </Grid>
 
       {/* Modal for viewing proof of meal */}
-      <Modal open={openModal} onClose={handleCloseModal}>
-        <Box
-          sx={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: '90%',
-            maxWidth: 500,
-            maxHeight: '90vh',
-            overflowY: 'auto',
-            bgcolor: 'background.paper',
-            border: '2px solid #000',
-            boxShadow: 24,
-            p: 4,
-            borderRadius: 2,
-            zIndex: 2000,
-          }}
-        >
-          <img
-            src={selectedPhoto || 'https://via.placeholder.com/500x300?text=Image+Not+Found'}
-            alt="Proof of Meal"
-            style={{ width: '100%', maxHeight: '60vh', objectFit: 'contain', borderRadius: 10 }}
-            onError={() => console.warn('Image failed to load')}
-          />
+<Modal open={openModal} onClose={handleCloseModal}>
+  <Box
+    sx={{
+      position: 'fixed', // ✅ use fixed instead of absolute
+      top: '50%',
+      left: '50%',
+      transform: 'translate(-50%, -50%)',
+      width: '90%',
+      maxWidth: 500,
+      maxHeight: '90vh',
+      overflowY: 'auto',
+      bgcolor: 'background.paper',
+      border: '2px solid #000',
+      boxShadow: 24,
+      p: 4,
+      borderRadius: 2,
+      zIndex: 1301, // ✅ ensure above MUI modal default (1300)
+    }}
+  >
+    <img
+      src={selectedPhoto || 'https://via.placeholder.com/500x300?text=Image+Not+Found'}
+      alt="Proof of Meal"
+      style={{
+        width: '100%',
+        maxHeight: '60vh',
+        objectFit: 'contain',
+        borderRadius: 10,
+        display: 'block',
+      }}
+    />
 
-          <Button
-            onClick={handleCloseModal}
-            variant="contained"
-            color="primary"
-            sx={{ mt: 2 }}
-            fullWidth
-          >
-            Close
-          </Button>
-        </Box>
-      </Modal>
+    <Button
+      onClick={handleCloseModal}
+      variant="contained"
+      color="primary"
+      sx={{ mt: 2 }}
+      fullWidth
+    >
+      Close
+    </Button>
+  </Box>
+</Modal>
+
     </Container>
   );
 };
