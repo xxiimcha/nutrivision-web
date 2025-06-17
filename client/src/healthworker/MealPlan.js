@@ -167,10 +167,20 @@ const MealPlan = () => {
       </Grid>
 
       {/* Modal for viewing proof of meal */}
-<Modal open={openModal} onClose={handleCloseModal}>
+<Modal
+  open={openModal}
+  onClose={handleCloseModal}
+  BackdropProps={{
+    style: {
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      zIndex: 1300, // Ensure it's above normal elements
+    }
+  }}
+  style={{ zIndex: 1400 }} // Apply higher z-index to modal itself
+>
   <Box
     sx={{
-      position: 'fixed', // ✅ use fixed instead of absolute
+      position: 'fixed', // Critical: 'fixed' avoids clipping from parents
       top: '50%',
       left: '50%',
       transform: 'translate(-50%, -50%)',
@@ -183,7 +193,7 @@ const MealPlan = () => {
       boxShadow: 24,
       p: 4,
       borderRadius: 2,
-      zIndex: 1301, // ✅ ensure above MUI modal default (1300)
+      zIndex: 1500, // Must be above MUI modals
     }}
   >
     <img
@@ -194,8 +204,9 @@ const MealPlan = () => {
         maxHeight: '60vh',
         objectFit: 'contain',
         borderRadius: 10,
-        display: 'block',
+        display: 'block'
       }}
+      onError={() => console.warn('Image failed to load')}
     />
 
     <Button
