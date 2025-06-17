@@ -262,6 +262,15 @@ const FoodManagement = () => {
                       />
                     </TableCell>
                   </TableRow>
+                  <TableRow>
+                    <TableCell><strong>Food Allergies:</strong></TableCell>
+                    <TableCell>
+                      <Chip 
+                        label={selectedKid.foodAllergy} 
+                        color={selectedKid.foodAllergy === 'None' ? 'success' : 'warning'} 
+                      />
+                    </TableCell>
+                  </TableRow>
                 </TableBody>
                 <TableFooter>
                   <TableRow>
